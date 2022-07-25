@@ -16,3 +16,6 @@
 
 # Ignore config
 config.yaml
+
+# Ignore db
+*.db
