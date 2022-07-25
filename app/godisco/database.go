@@ -15,9 +15,10 @@ type ManagedChannel struct {
 
 type ManagedChannelCreated struct {
 	gorm.Model
-	Name      string `json:"name"`
-	ChannelID string `json:"channel_id"`
-	GuildID   string `json:"guild_id"`
+	Name            string `json:"name"`
+	ChannelID       string `json:"channel_id"`
+	GuildID         string `json:"guild_id"`
+	ParentChannelID string `json:"parent_channel_id"`
 }
 
 var db *gorm.DB

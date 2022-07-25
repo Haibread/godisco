@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -12,7 +10,7 @@ func VCUpdate(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 		if err != nil {
 			log.Error(err)
 		}
-		fmt.Printf("User %v (%v) Joined channel %v", User.Username, i.UserID, i.ChannelID)
+		log.Debugf("User %v (%v) Joined channel %v", User.Username, i.UserID, i.ChannelID)
 		userJoined(i)
 
 	} else if i.BeforeUpdate.ChannelID != "" && i.VoiceState.ChannelID != i.BeforeUpdate.ChannelID && i.VoiceState.ChannelID != "" {

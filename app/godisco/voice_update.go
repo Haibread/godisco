@@ -3,85 +3,112 @@ package main
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 
 	"github.com/bwmarrin/discordgo"
 	"gorm.io/gorm"
 )
 
 func userJoined(i *discordgo.VoiceStateUpdate) {
-	// Check if the channel is in db
-	if !isChannelManaged(i.ChannelID) {
-		return
-	}
-
-	// Get info from managedchannel
 	channel, err := dg.Channel(i.ChannelID)
 	if err != nil {
 		log.Error(err)
 		return
 	}
+	if isChannelManaged(i.ChannelID) {
+		_, err = createChildChannelandMove(channel, i.UserID)
+		if err != nil {
+			log.Error(err)
+		}
+	}
 
-	// Create data for new channel
-	channelTemplateName, err := getManagedChannelTemplate(i.ChannelID)
+}
+
+func createChildChannelandMove(parentChannel *discordgo.Channel, User string) (*discordgo.Channel, error) {
+
+	channel, err := dg.Channel(parentChannel.ID)
 	if err != nil {
-		log.Error(err)
+		return nil, err
+	}
+
+	createdChannel, err := createChildChannel(channel)
+	if err != nil {
+		return nil, err
+	}
+
+	err = dg.GuildMemberMove(parentChannel.GuildID, User, &createdChannel.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return createdChannel, nil
+}
+
+func createChildChannel(parentChannel *discordgo.Channel) (*discordgo.Channel, error) {
+	// Create data for new channel
+	channelTemplateName, err := getManagedChannelTemplate(parentChannel.ID)
+	if err != nil {
 		channelTemplateName = "Managed Channel"
 	}
-	channelName := fmt.Sprintf("%v-%v", channelTemplateName, i.UserID)
 
+	channelName := fmt.Sprintf("%v-%v", channelTemplateName, rand.Intn(100))
 	channelToCreate := &discordgo.GuildChannelCreateData{
 		Name:     channelName,
 		Type:     discordgo.ChannelTypeGuildVoice,
-		Bitrate:  channel.Bitrate,
-		Position: channel.Position,
-		ParentID: channel.ParentID,
+		Bitrate:  parentChannel.Bitrate,
+		Position: parentChannel.Position - 1,
+		ParentID: parentChannel.ParentID,
 	}
 
 	// Create the new channel
-	chanCreated, err := dg.GuildChannelCreateComplex(i.GuildID, *channelToCreate)
+	chanCreated, err := dg.GuildChannelCreateComplex(parentChannel.GuildID, *channelToCreate)
 	if err != nil {
-		log.Error(err)
+		return nil, err
 	}
 
 	// Add channel in db
-	db.Create(&ManagedChannelCreated{Name: chanCreated.Name, ChannelID: chanCreated.ID, GuildID: chanCreated.GuildID})
-
-	// Move user to new channel
-	err = dg.GuildMemberMove(i.GuildID, i.UserID, &chanCreated.ID)
-	if err != nil {
-		log.Error(err)
-	}
+	db.Create(&ManagedChannelCreated{Name: chanCreated.Name, ChannelID: chanCreated.ID, GuildID: chanCreated.GuildID, ParentChannelID: parentChannel.ID})
+	return chanCreated, nil
 }
 
 func userMoved(i *discordgo.VoiceStateUpdate) {
 	// Check if the channel is managed
 	if isChannelManaged(i.BeforeUpdate.ChannelID) {
-		fmt.Println("Last channel is managed, no actions required")
+		log.Debugf("Last channel %v is managed, no actions required", i.BeforeUpdate.ChannelID)
 	} else if isChannelManaged(i.ChannelID) {
-		fmt.Println("Current channel is managed, we need to create a new channel")
-		userJoined(i)
+		log.Debugf("Current channel %v is managed, we need to create a new channel", i.ChannelID)
+		channel, err := dg.Channel(i.ChannelID)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		_, err = createChildChannelandMove(channel, i.UserID)
+		if err != nil {
+			log.Error(err)
+		}
 	}
 
 	// Check if the channel is in managed channel created
 	if isChannelManagedCreated(i.BeforeUpdate.ChannelID) {
-		fmt.Println("Last channel is managed created, checking if empty")
+		log.Debugf("Last channel %v is managed, no actions required", i.BeforeUpdate.ChannelID)
 		if isChannelEmpty(i.GuildID, i.BeforeUpdate.ChannelID) {
-			fmt.Println("Channel is empty, deleting it")
+			log.Debugf("Channel %v is empty on guild %v, deleting it", i.BeforeUpdate.ChannelID, i.GuildID)
 			_, err := dg.ChannelDelete(i.BeforeUpdate.ChannelID)
 			if err != nil {
 				log.Error(err)
 			}
 			log.Debug("Removing channel record from db")
 			db.Unscoped().Where("channel_id = ?", i.BeforeUpdate.ChannelID).Delete(&ManagedChannelCreated{})
+		} else {
+			log.Debugf("Channel %v is not empty, no actions required", i.BeforeUpdate.ChannelID)
 		}
 	} else if isChannelManagedCreated(i.ChannelID) {
-		fmt.Println("Current channel is managed created, no actions required")
+		log.Debugf("Current channel %v is managed created, no actions required", i.ChannelID)
 	}
 }
 
 func isChannelEmpty(GuildID string, ChannelID string) bool {
 	count := 0
-	// Check if the channel is empty
 	guild, err := dg.State.Guild(GuildID)
 	if err != nil {
 		log.Error(err)
@@ -151,7 +178,6 @@ func getManagedChannelTemplate(ChannelID string) (string, error) {
 			log.Debugf("DB Record for Channel ID \"%v\" has not been found", ChannelID)
 			return "", errors.New("channel not found in DB")
 		} else {
-			log.Error(managed_channel.Error)
 			return "", fmt.Errorf("error while getting channel template: %v", managed_channel.Error)
 		}
 	}
