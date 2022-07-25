@@ -7,16 +7,23 @@ import (
 )
 
 func VCUpdate(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
-
 	if i.BeforeUpdate == nil {
-		fmt.Println("User Joined")
+		User, err := s.User(i.UserID)
+		if err != nil {
+			log.Error(err)
+		}
+		fmt.Printf("User %v (%v) Joined channel %v", User.Username, i.UserID, i.ChannelID)
 		userJoined(i)
+
 	} else if i.BeforeUpdate.ChannelID != "" && i.VoiceState.ChannelID != i.BeforeUpdate.ChannelID && i.VoiceState.ChannelID != "" {
-		fmt.Println("User moved")
+		userMoved(i)
+
 	} else if i.VoiceState.ChannelID == i.BeforeUpdate.ChannelID {
 		fmt.Println("User did something but did not move")
+		return
+
 	} else if i.VoiceState.ChannelID == "" {
-		fmt.Println("User left")
+		userMoved(i)
 	}
 
 }

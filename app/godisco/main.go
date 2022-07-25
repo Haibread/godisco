@@ -40,6 +40,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	initDB()
+
 	dg, err = discordgo.New("Bot " + viper.GetString("token"))
 
 	if err != nil {
@@ -53,6 +55,7 @@ func main() {
 	}
 
 	dg.UpdateListeningStatus("Developped by Hybrid#0001")
+	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildVoiceStates | discordgo.IntentsGuildPresences
 
 	log.Info("Adding handlers")
 	dg.AddHandler(
