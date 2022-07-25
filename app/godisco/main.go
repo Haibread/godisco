@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
@@ -30,19 +32,10 @@ var (
 
 func main() {
 	initLogger()
-
-	viper.SetConfigName("config")
-	viper.AddConfigPath(".")
-	viper.SetConfigType("yaml")
-	err := viper.ReadInConfig()
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	initconfig()
 	initDB()
 
-	dg, err = discordgo.New("Bot " + viper.GetString("token"))
-
+	dg, err := discordgo.New("Bot " + viper.GetString("token"))
 	if err != nil {
 		log.Fatal("error creating discord session, ", err)
 	}
@@ -53,7 +46,7 @@ func main() {
 		log.Fatalf("Could not open Websocket connection %s", err)
 	}
 
-	dg.UpdateListeningStatus("Developped by Hybrid#0001")
+	dg.UpdateListeningStatus(viper.GetString("bot_status"))
 	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildVoiceStates | discordgo.IntentsGuildPresences
 
 	log.Info("Adding handlers")
@@ -100,4 +93,20 @@ func initLogger() {
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 	log = logger.Sugar()
+}
+
+func initconfig() {
+	viper.SetDefault("token", "")
+	viper.SetDefault("bot_status", "Developped by Hybrid#0001")
+	viper.SetConfigName("config")
+	viper.AddConfigPath(".")
+	viper.SetConfigType("yaml")
+	err := viper.ReadInConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+	viper.OnConfigChange(func(e fsnotify.Event) {
+		fmt.Println("Config file changed:", e.Name)
+	})
+	viper.WatchConfig()
 }
