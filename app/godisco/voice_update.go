@@ -54,66 +54,48 @@ func userJoined(i *discordgo.VoiceStateUpdate) {
 
 func userMoved(i *discordgo.VoiceStateUpdate) {
 	// Check if the channel is managed
-	var mc_result ManagedChannel
-	managed_channel := db.Select("channel_id").Where("channel_id = ?", i.BeforeUpdate.ChannelID).First(&mc_result)
-	if managed_channel.Error != nil {
-		if errors.Is(managed_channel.Error, gorm.ErrRecordNotFound) {
-			fmt.Printf("Channel %v is not managed\n", i.BeforeUpdate.ChannelID)
-		} else {
-			log.Error(managed_channel.Error)
-			return
-		}
-	}
-
-	if mc_result.ChannelID != "" {
-		fmt.Println("Detect managed channel")
-		// TEMP
+	if isChannelManaged(i.BeforeUpdate.ChannelID) {
+		fmt.Println("Last channel is managed, no actions required")
+	} else if isChannelManaged(i.ChannelID) {
+		fmt.Println("Current channel is managed, we need to create a new channel")
 		userJoined(i)
-		return
 	}
 
-	fmt.Println("Reached beacon")
 	// Check if the channel is in managed channel created
-	var mch_result ManagedChannelCreated
-	managed_channel_created := db.Select("channel_id").Where("channel_id = ?", i.BeforeUpdate.ChannelID).First(&mch_result)
-	if managed_channel_created.Error != nil {
-		if errors.Is(managed_channel_created.Error, gorm.ErrRecordNotFound) {
-			fmt.Printf("Channel %v is not managed created\n", i.BeforeUpdate.ChannelID)
-		} else {
-			log.Error(managed_channel_created.Error)
+	if isChannelManagedCreated(i.BeforeUpdate.ChannelID) {
+		fmt.Println("Last channel is managed created, checking if empty")
+		if isChannelEmpty(i.GuildID, i.BeforeUpdate.ChannelID) {
+			fmt.Println("Channel is empty, deleting it")
+			_, err := dg.ChannelDelete(i.BeforeUpdate.ChannelID)
+			if err != nil {
+				log.Error(err)
+			}
+			log.Debug("Removing channel record from db")
+			db.Unscoped().Where("channel_id = ?", i.BeforeUpdate.ChannelID).Delete(&ManagedChannelCreated{})
 		}
-		return
+	} else if isChannelManagedCreated(i.ChannelID) {
+		fmt.Println("Current channel is managed created, no actions required")
 	}
+}
 
-	if mch_result.ChannelID != "" {
-		fmt.Println("Detect managed channel created")
-	}
-
-	fmt.Println("Reached second beacon")
-
+func isChannelEmpty(GuildID string, ChannelID string) bool {
+	count := 0
 	// Check if the channel is empty
-	guild, err := dg.State.Guild(i.GuildID)
+	guild, err := dg.State.Guild(GuildID)
 	if err != nil {
 		log.Error(err)
 	}
 
-	count := 0
 	for _, channel := range guild.VoiceStates {
-		if channel.ChannelID == i.BeforeUpdate.ChannelID {
+		if channel.ChannelID == ChannelID {
 			count += 1
 		}
 	}
 
-	fmt.Println("Reached third beacon")
-
 	if count == 0 {
-		// Delete channel
-		_, err := dg.ChannelDelete(i.BeforeUpdate.ChannelID)
-		if err != nil {
-			log.Error(err)
-		}
-		// Delete channel from db
-		db.Unscoped().Where("channel_id = ?", i.BeforeUpdate.ChannelID).Delete(&ManagedChannelCreated{})
+		return true
+	} else {
+		return false
 	}
 }
 
@@ -139,5 +121,22 @@ func isChannelManaged(ChannelID string) bool {
 }
 
 func isChannelManagedCreated(ChannelID string) bool {
+	var channel ManagedChannelCreated
+
+	managed_channel := db.Select("channel_id").Where("channel_id = ?", ChannelID).First(&channel)
+
+	if managed_channel.Error != nil {
+		if errors.Is(managed_channel.Error, gorm.ErrRecordNotFound) {
+			log.Debugf("DB Record for Channel ID \"%v\" has not been found", ChannelID)
+		} else {
+			log.Error(managed_channel.Error)
+		}
+		return false
+	}
+
+	if channel.ChannelID != "" {
+		return true
+	}
+
 	return false
 }
