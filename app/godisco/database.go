@@ -8,8 +8,9 @@ import (
 
 type ManagedChannel struct {
 	gorm.Model
-	ChannelID string `json:"channel_id"`
-	GuildID   string `json:"guild_id"`
+	NameTemplate string `json:"name_template"`
+	ChannelID    string `json:"channel_id"`
+	GuildID      string `json:"guild_id"`
 }
 
 type ManagedChannelCreated struct {
@@ -27,7 +28,7 @@ func initDB() {
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		log.Fatal("Failed to connect database")
+		log.Fatal("Failed to connect to the database")
 	}
 
 	db.AutoMigrate(&ManagedChannel{})

@@ -10,13 +10,7 @@ import (
 
 func userJoined(i *discordgo.VoiceStateUpdate) {
 	// Check if the channel is in db
-	managed_channel := db.Select("channel_id").Where("channel_id = ?", i.ChannelID).First(&ManagedChannel{})
-	if managed_channel.Error != nil {
-		if errors.Is(managed_channel.Error, gorm.ErrRecordNotFound) {
-			fmt.Printf("Channel %v is not managed", i.ChannelID)
-		} else {
-			log.Error(managed_channel.Error)
-		}
+	if !isChannelManaged(i.ChannelID) {
 		return
 	}
 
@@ -28,8 +22,15 @@ func userJoined(i *discordgo.VoiceStateUpdate) {
 	}
 
 	// Create data for new channel
+	channelTemplateName, err := getManagedChannelTemplate(i.ChannelID)
+	if err != nil {
+		log.Error(err)
+		channelTemplateName = "Managed Channel"
+	}
+	channelName := fmt.Sprintf("%v-%v", channelTemplateName, i.UserID)
+
 	channelToCreate := &discordgo.GuildChannelCreateData{
-		Name:     "Managedbygodisco",
+		Name:     channelName,
 		Type:     discordgo.ChannelTypeGuildVoice,
 		Bitrate:  channel.Bitrate,
 		Position: channel.Position,
@@ -139,4 +140,25 @@ func isChannelManagedCreated(ChannelID string) bool {
 	}
 
 	return false
+}
+
+func getManagedChannelTemplate(ChannelID string) (string, error) {
+	var channel ManagedChannel
+	managed_channel := db.Select("channel_id").Where("channel_id = ?", ChannelID).First(&channel)
+
+	if managed_channel.Error != nil {
+		if errors.Is(managed_channel.Error, gorm.ErrRecordNotFound) {
+			log.Debugf("DB Record for Channel ID \"%v\" has not been found", ChannelID)
+			return "", errors.New("channel not found in DB")
+		} else {
+			log.Error(managed_channel.Error)
+			return "", fmt.Errorf("error while getting channel template: %v", managed_channel.Error)
+		}
+	}
+
+	if channel.NameTemplate != "" {
+		return channel.NameTemplate, nil
+	} else {
+		return "", errors.New("no template found")
+	}
 }

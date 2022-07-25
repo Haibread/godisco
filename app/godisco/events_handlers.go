@@ -19,7 +19,7 @@ func VCUpdate(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 		userMoved(i)
 
 	} else if i.VoiceState.ChannelID == i.BeforeUpdate.ChannelID {
-		fmt.Println("User did something but did not move")
+		log.Debugf("User %v did something but nothing relevant happened", i.UserID)
 		return
 
 	} else if i.VoiceState.ChannelID == "" {
