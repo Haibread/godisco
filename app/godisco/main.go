@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/fsnotify/fsnotify"
@@ -26,7 +27,7 @@ var (
 		},
 	}
 
-	dg  *discordgo.Session
+	//dg  *discordgo.Session
 	log *zap.SugaredLogger
 )
 
@@ -40,14 +41,8 @@ func main() {
 		log.Fatal("error creating discord session, ", err)
 	}
 
-	log.Info("Opening Websocket connection")
-	err = dg.Open()
-	if err != nil {
-		log.Fatalf("Could not open Websocket connection %s", err)
-	}
-
-	dg.UpdateListeningStatus(viper.GetString("bot_status"))
 	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildVoiceStates | discordgo.IntentsGuildPresences
+	//dg.Identify.Intents = discordgo.MakeIntent(discordgo.IntentsAll)
 
 	log.Info("Adding handlers")
 	dg.AddHandler(
@@ -57,6 +52,14 @@ func main() {
 			}
 		})
 	dg.AddHandler(VCUpdate)
+
+	log.Info("Opening Websocket connection")
+	err = dg.Open()
+	if err != nil {
+		log.Fatalf("Could not open Websocket connection %s", err)
+	}
+
+	dg.UpdateListeningStatus(viper.GetString("bot_status"))
 
 	//write new commands
 	log.Info("Adding commands")
@@ -69,6 +72,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	time.Sleep(time.Second * 5)
+	fmt.Printf("getPresence %+v", (getPresence(dg, "530775642879426561", "262592754666700810")).Activities)
 
 	// Wait here until CTRL-C or other term signal is received.
 	log.Info("Bot is now running.  Press CTRL-C to exit.")
@@ -86,11 +92,11 @@ func main() {
 	}
 	log.Info("Deleted commands")
 
-	defer dg.Close()
+	dg.Close()
 }
 
 func initLogger() {
-	logger, _ := zap.NewProduction()
+	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 	log = logger.Sugar()
 }
@@ -99,7 +105,7 @@ func initconfig() {
 	viper.SetDefault("token", "")
 	viper.SetDefault("bot_status", "Developped by Hybrid#0001")
 	viper.SetConfigName("config")
-	viper.AddConfigPath(".")
+	viper.AddConfigPath("C:\\Users\\theob\\git\\godisco\\")
 	viper.SetConfigType("yaml")
 	err := viper.ReadInConfig()
 	if err != nil {
@@ -109,4 +115,12 @@ func initconfig() {
 		fmt.Println("Config file changed:", e.Name)
 	})
 	viper.WatchConfig()
+}
+
+func getPresence(s *discordgo.Session, GuildID string, UserID string) *discordgo.Presence {
+	presence, err := s.State.Presence(GuildID, UserID)
+	if err != nil {
+		log.Error(err)
+	}
+	return presence
 }

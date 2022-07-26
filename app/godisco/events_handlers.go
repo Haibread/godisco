@@ -11,17 +11,17 @@ func VCUpdate(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 			log.Error(err)
 		}
 		log.Debugf("User %v (%v) Joined channel %v", User.Username, i.UserID, i.ChannelID)
-		userJoined(i)
+		userJoined(s, i)
 
 	} else if i.BeforeUpdate.ChannelID != "" && i.VoiceState.ChannelID != i.BeforeUpdate.ChannelID && i.VoiceState.ChannelID != "" {
-		userMoved(i)
+		userMoved(s, i)
 
 	} else if i.VoiceState.ChannelID == i.BeforeUpdate.ChannelID {
 		log.Debugf("User %v did something but nothing relevant happened", i.UserID)
 		return
 
 	} else if i.VoiceState.ChannelID == "" {
-		userMoved(i)
+		userMoved(s, i)
 	}
 
 }
