@@ -1,13 +1,23 @@
-package main
+package channels
 
 import (
 	"errors"
 	"fmt"
 	"math/rand"
 
+	"github.com/Haibread/godisco/database"
+	"github.com/Haibread/godisco/logging"
+	"github.com/Haibread/godisco/models"
 	"github.com/bwmarrin/discordgo"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
+
+var log *zap.SugaredLogger
+
+func init() {
+	log = logging.InitLogger()
+}
 
 func userJoined(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 	channel, err := s.State.Channel(i.ChannelID)
@@ -67,8 +77,8 @@ func createChildChannel(s *discordgo.Session, parentChannel *discordgo.Channel) 
 		return nil, err
 	}
 
-	// Add channel in db
-	db.Create(&ManagedChannelCreated{Name: chanCreated.Name, ChannelID: chanCreated.ID, GuildID: chanCreated.GuildID, ParentChannelID: parentChannel.ID})
+	// Add channel in database.database.DB
+	database.DB.Create(&models.ManagedChannelCreated{Name: chanCreated.Name, ChannelID: chanCreated.ID, GuildID: chanCreated.GuildID, ParentChannelID: parentChannel.ID})
 	return chanCreated, nil
 }
 
@@ -98,8 +108,8 @@ func userMoved(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 			if err != nil {
 				log.Error(err)
 			}
-			log.Debug("Removing channel record from db")
-			db.Unscoped().Where("channel_id = ?", i.BeforeUpdate.ChannelID).Delete(&ManagedChannelCreated{})
+			log.Debug("Removing channel record from database.DB")
+			database.DB.Unscoped().Where("channel_id = ?", i.BeforeUpdate.ChannelID).Delete(&models.ManagedChannelCreated{})
 		} else {
 			log.Debugf("Channel %v is not empty, no actions required", i.BeforeUpdate.ChannelID)
 		}
@@ -129,13 +139,13 @@ func isChannelEmpty(s *discordgo.Session, GuildID string, ChannelID string) bool
 }
 
 func isChannelManaged(s *discordgo.Session, ChannelID string) bool {
-	var channel ManagedChannel
+	var channel models.ManagedChannel
 
-	managed_channel := db.Select("channel_id").Where("channel_id = ?", ChannelID).First(&channel)
+	managed_channel := database.DB.Select("channel_id").Where("channel_id = ?", ChannelID).First(&channel)
 
 	if managed_channel.Error != nil {
 		if errors.Is(managed_channel.Error, gorm.ErrRecordNotFound) {
-			log.Debugf("DB Record for Channel ID \"%v\" has not been found", ChannelID)
+			log.Debugf("database.DB Record for Channel ID \"%v\" has not been found", ChannelID)
 		} else {
 			log.Error(managed_channel.Error)
 		}
@@ -150,13 +160,13 @@ func isChannelManaged(s *discordgo.Session, ChannelID string) bool {
 }
 
 func isChannelManagedCreated(s *discordgo.Session, ChannelID string) bool {
-	var channel ManagedChannelCreated
+	var channel models.ManagedChannelCreated
 
-	managed_channel := db.Select("channel_id").Where("channel_id = ?", ChannelID).First(&channel)
+	managed_channel := database.DB.Select("channel_id").Where("channel_id = ?", ChannelID).First(&channel)
 
 	if managed_channel.Error != nil {
 		if errors.Is(managed_channel.Error, gorm.ErrRecordNotFound) {
-			log.Debugf("DB Record for Channel ID \"%v\" has not been found", ChannelID)
+			log.Debugf("database.DB Record for Channel ID \"%v\" has not been found", ChannelID)
 		} else {
 			log.Error(managed_channel.Error)
 		}
@@ -171,13 +181,13 @@ func isChannelManagedCreated(s *discordgo.Session, ChannelID string) bool {
 }
 
 func getManagedChannelTemplate(s *discordgo.Session, ChannelID string) (string, error) {
-	var channel ManagedChannel
-	managed_channel := db.Select("channel_id").Where("channel_id = ?", ChannelID).First(&channel)
+	var channel models.ManagedChannel
+	managed_channel := database.DB.Select("channel_id").Where("channel_id = ?", ChannelID).First(&channel)
 
 	if managed_channel.Error != nil {
 		if errors.Is(managed_channel.Error, gorm.ErrRecordNotFound) {
-			log.Debugf("DB Record for Channel ID \"%v\" has not been found", ChannelID)
-			return "", errors.New("channel not found in DB")
+			log.Debugf("database.DB Record for Channel ID \"%v\" has not been found", ChannelID)
+			return "", errors.New("channel not found in database.DB")
 		} else {
 			return "", fmt.Errorf("error while getting channel template: %v", managed_channel.Error)
 		}

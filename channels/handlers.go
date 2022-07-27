@@ -1,10 +1,12 @@
-package main
+package channels
 
 import (
+	"github.com/Haibread/godisco/logging"
 	"github.com/bwmarrin/discordgo"
 )
 
 func VCUpdate(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
+	log := logging.InitLogger()
 	if i.BeforeUpdate == nil {
 		User, err := s.User(i.UserID)
 		if err != nil {
