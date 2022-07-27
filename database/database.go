@@ -1,20 +1,26 @@
 package database
 
 import (
-	"log"
-
+	"github.com/Haibread/godisco/logging"
 	"github.com/Haibread/godisco/models"
+	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
 var DB *gorm.DB
+var log *zap.SugaredLogger
+
+func init() {
+	log = logging.InitLogger()
+}
 
 func InitDB() {
 	var err error
 	DB, err = gorm.Open(sqlite.Open("test.db"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
+		//Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {
 		log.Fatal("Failed to connect to the database")
@@ -22,7 +28,11 @@ func InitDB() {
 
 	DB.AutoMigrate(&models.ManagedChannel{})
 	DB.AutoMigrate(&models.ManagedChannelCreated{})
-	DB.FirstOrCreate(&models.ManagedChannel{ChannelID: "941649245168091136", GuildID: "759083170619588669"})
+
+	//Test data
+	log.Info("Creating db entries")
+	var nameTemplate string = "{{.Icao}} {{.CreatorName}}"
+	DB.FirstOrCreate(&models.ManagedChannel{ChannelID: "941649245168091136", GuildID: "759083170619588669", NameTemplate: nameTemplate})
 }
 
 func GetDB() *gorm.DB {
