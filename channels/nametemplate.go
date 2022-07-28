@@ -7,6 +7,8 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/Haibread/godisco/database"
+	"github.com/Haibread/godisco/models"
 	"github.com/bwmarrin/discordgo"
 	"go.uber.org/zap"
 )
@@ -50,6 +52,7 @@ func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 			// We don't want 0 but we want 1
 			c.templateVars.Number = fmt.Sprintf("%d", (c.Rank)+1)
 		case v == "gamename":
+			fmt.Println("Getting game name")
 			// If primary channel
 			if c.PrimaryChannel != nil {
 				user, err := c.Session.User(c.Creator)
@@ -112,12 +115,40 @@ func getICAO(position int) string {
 	return icao[position]
 }
 
-func loopChannelsRename() {
-	//TODO
+func renameAllSecondaryChannels(s *discordgo.Session) {
 	//1. Get all channels from db
+	var channels []models.ManagedChannelCreated
+	query := database.DB.Find(&channels)
+	if query.Error != nil {
+		log.Errorf("Failed to get all secondary channels %v", query.Error)
+	}
 	//2. For each channel, get name from template
-	//3. If channel name is different from current name, rename channel
-	//4. If channel name is the same, do nothing
+	for _, c := range channels {
+		fmt.Printf("secondary channel to maybe rename %+v\n", c)
+
+		parentChannel, err := s.State.Channel(c.ParentChannelID)
+		if err != nil {
+			log.Error(err)
+		}
+
+		channelName, err := getChannelName(s, parentChannel, c.CreatorID)
+		if err != nil {
+			log.Error(err)
+		}
+		//3. If channel name is different from current name, rename channel
+		currentChannel, err := s.State.Channel(c.ChannelID)
+		currentChannelName := currentChannel.Name
+		fmt.Printf("Wanted channel name: %s\n", channelName)
+		fmt.Printf("Current channel name: %s\n", currentChannelName)
+		if err != nil {
+			log.Error(err)
+		}
+		if channelName != currentChannelName {
+			s.ChannelEdit(c.ChannelID, channelName)
+		}
+		//4. If channel name is the same, do nothing
+	}
+
 }
 
 func getUsersInChannel(s *discordgo.Session, channel *discordgo.Channel) ([]string, error) {

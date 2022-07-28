@@ -55,43 +55,10 @@ func createChildChannelandMove(s *discordgo.Session, i *discordgo.VoiceStateUpda
 }
 
 func createChildChannel(s *discordgo.Session, i *discordgo.VoiceStateUpdate, parentChannel *discordgo.Channel) (*discordgo.Channel, error) {
-	// Get channel rank
-	channelrank, err := getManagedChannelCreatedRank(s, parentChannel.ID)
+
+	channelName, err := getChannelName(s, parentChannel, i.UserID)
 	if err != nil {
 		return nil, err
-	}
-
-	// Get Template
-	channelTemplateName, err := getManagedChannelTemplate(s, parentChannel.ID)
-	if err != nil {
-		channelTemplateName = ""
-
-	}
-
-	//Template struct
-	channel_tpl := &ChanneltoRename{
-		PrimaryChannel: parentChannel,
-		Creator:        i.UserID,
-		Template:       channelTemplateName,
-		Session:        s,
-		Rank:           channelrank,
-	}
-
-	var channelName string
-	// Get Name from template
-	if channel_tpl.Template != "" {
-		channelName, err = channel_tpl.getNamefromTemplate()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if channelName == "" {
-		channelDefaultName, err := getPrimaryChannelDefaultName(s, parentChannel.ID)
-		if err != nil {
-			return nil, err
-		}
-		channelName = fmt.Sprintf("#%d %s", (channelrank)+1, channelDefaultName)
 	}
 
 	channelToCreate := &discordgo.GuildChannelCreateData{
@@ -109,7 +76,7 @@ func createChildChannel(s *discordgo.Session, i *discordgo.VoiceStateUpdate, par
 	}
 
 	// Add channel in database.database.DB
-	database.DB.Create(&models.ManagedChannelCreated{Name: chanCreated.Name, ChannelID: chanCreated.ID, GuildID: chanCreated.GuildID, ParentChannelID: parentChannel.ID})
+	database.DB.Create(&models.ManagedChannelCreated{Name: chanCreated.Name, ChannelID: chanCreated.ID, GuildID: chanCreated.GuildID, ParentChannelID: parentChannel.ID, CreatorID: i.UserID})
 	return chanCreated, nil
 }
 
@@ -263,5 +230,50 @@ func getManagedChannelCreatedRank(s *discordgo.Session, ParentChannelID string) 
 		}
 	}
 
-	return int(count), nil
+	if count >= (1) {
+		return int(count - 1), nil
+	} else {
+		return 0, nil
+	}
+}
+
+func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, CreatorID string) (string, error) {
+	// Get channel rank
+	channelrank, err := getManagedChannelCreatedRank(s, parentChannel.ID)
+	if err != nil {
+		return "nil", err
+	}
+	// Get Template
+	channelTemplateName, err := getManagedChannelTemplate(s, parentChannel.ID)
+	if err != nil {
+		channelTemplateName = ""
+
+	}
+
+	//Template struct
+	channel_tpl := &ChanneltoRename{
+		PrimaryChannel: parentChannel,
+		Creator:        CreatorID,
+		Template:       channelTemplateName,
+		Session:        s,
+		Rank:           channelrank,
+	}
+
+	var channelName string
+	// Get Name from template
+	if channel_tpl.Template != "" {
+		channelName, err = channel_tpl.getNamefromTemplate()
+		if err != nil {
+			return "nil", err
+		}
+	}
+
+	if channelName == "" {
+		channelDefaultName, err := getPrimaryChannelDefaultName(s, parentChannel.ID)
+		if err != nil {
+			return "nil", err
+		}
+		channelName = fmt.Sprintf("#%d %s", (channelrank)+1, channelDefaultName)
+	}
+	return channelName, nil
 }

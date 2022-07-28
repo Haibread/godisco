@@ -40,11 +40,7 @@ func main() {
 
 	dg.UpdateListeningStatus(viper.GetString("bot_status"))
 
-	//write new commands
-
-	/* 	time.Sleep(time.Second * 5)
-	   	fmt.Printf("getPresence %+v", (getPresence(dg, "530775642879426561", "262592754666700810")).Activities) */
-
+	channels.StartChannelLoops(dg)
 	// Wait here until CTRL-C or other term signal is received.
 	log.Info("Bot is now running.  Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)

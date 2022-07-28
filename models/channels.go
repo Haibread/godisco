@@ -16,4 +16,5 @@ type ManagedChannelCreated struct {
 	ChannelID       string `json:"channel_id"`
 	GuildID         string `json:"guild_id"`
 	ParentChannelID string `json:"parent_channel_id"`
+	CreatorID       string `json:"creator_id"`
 }
