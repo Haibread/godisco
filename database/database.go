@@ -31,8 +31,8 @@ func InitDB() {
 
 	//Test data
 	log.Info("Creating db entries")
-	var nameTemplate string = "{{.Icao}} {{.CreatorName}}"
-	DB.FirstOrCreate(&models.ManagedChannel{ChannelID: "941649245168091136", GuildID: "759083170619588669", NameTemplate: nameTemplate})
+	var nameTemplate string = "{{.Icao}} {{.GameName}}"
+	DB.FirstOrCreate(&models.ManagedChannel{ChannelID: "941649245168091136", GuildID: "759083170619588669", NameTemplate: nameTemplate, NameDefault: "General"})
 }
 
 func GetDB() *gorm.DB {

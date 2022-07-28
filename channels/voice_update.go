@@ -55,28 +55,43 @@ func createChildChannelandMove(s *discordgo.Session, i *discordgo.VoiceStateUpda
 }
 
 func createChildChannel(s *discordgo.Session, i *discordgo.VoiceStateUpdate, parentChannel *discordgo.Channel) (*discordgo.Channel, error) {
-	// Create data for new channel
-	channelTemplateName, err := getManagedChannelTemplate(s, parentChannel.ID)
-	if err != nil {
-		channelTemplateName = "Managed Channel"
-	}
-
+	// Get channel rank
 	channelrank, err := getManagedChannelCreatedRank(s, parentChannel.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	channel_tpl := &ChanneltoRename{
-		ParentChannel: parentChannel,
-		Creator:       i.UserID,
-		Template:      channelTemplateName,
-		Session:       s,
-		Rank:          channelrank,
+	// Get Template
+	channelTemplateName, err := getManagedChannelTemplate(s, parentChannel.ID)
+	if err != nil {
+		channelTemplateName = ""
+
 	}
 
-	channelName, err := channel_tpl.getNamefromTemplate()
-	if err != nil {
-		return nil, err
+	//Template struct
+	channel_tpl := &ChanneltoRename{
+		PrimaryChannel: parentChannel,
+		Creator:        i.UserID,
+		Template:       channelTemplateName,
+		Session:        s,
+		Rank:           channelrank,
+	}
+
+	var channelName string
+	// Get Name from template
+	if channel_tpl.Template != "" {
+		channelName, err = channel_tpl.getNamefromTemplate()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if channelName == "" {
+		channelDefaultName, err := getPrimaryChannelDefaultName(s, parentChannel.ID)
+		if err != nil {
+			return nil, err
+		}
+		channelName = fmt.Sprintf("#%d %s", (channelrank)+1, channelDefaultName)
 	}
 
 	channelToCreate := &discordgo.GuildChannelCreateData{
@@ -213,6 +228,26 @@ func getManagedChannelTemplate(s *discordgo.Session, ChannelID string) (string, 
 		return channel.NameTemplate, nil
 	} else {
 		return "", fmt.Errorf("no template found for channel %v", ChannelID)
+	}
+}
+
+func getPrimaryChannelDefaultName(s *discordgo.Session, ChannelID string) (string, error) {
+	var channel models.ManagedChannel
+	query := database.DB.Select("name_default").Where("channel_id = ?", ChannelID).First(&channel)
+
+	if query.Error != nil {
+		if errors.Is(query.Error, gorm.ErrRecordNotFound) {
+			//log.Debugf("database.DB Record for Channel ID \"%v\" has not been found", ChannelID)
+			return "", nil
+		} else {
+			return "", fmt.Errorf("error while getting channel default name: %v", query.Error)
+		}
+	}
+
+	if channel.NameDefault != "" {
+		return channel.NameDefault, nil
+	} else {
+		return "", fmt.Errorf("no default name found for channel %v", ChannelID)
 	}
 }
 

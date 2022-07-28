@@ -12,13 +12,14 @@ import (
 )
 
 type ChanneltoRename struct {
-	ParentChannel *discordgo.Channel
-	Creator       string
-	Rank          int
-	Template      string
-	templateVars  templateVars
-	Logger        *zap.SugaredLogger
-	Session       *discordgo.Session
+	PrimaryChannel   *discordgo.Channel
+	SecondaryChannel *discordgo.Channel
+	Creator          string
+	Rank             int
+	Template         string
+	templateVars     templateVars
+	Logger           *zap.SugaredLogger
+	Session          *discordgo.Session
 }
 
 type templateVars struct {
@@ -46,9 +47,33 @@ func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 		case v == "icao":
 			c.templateVars.Icao = getICAO(c.Rank)
 		case v == "number":
-			c.templateVars.Number = fmt.Sprintf("%d", c.Rank)
+			// We don't want 0 but we want 1
+			c.templateVars.Number = fmt.Sprintf("%d", (c.Rank)+1)
 		case v == "gamename":
-			c.templateVars.GameName = "N/A"
+			// If primary channel
+			if c.PrimaryChannel != nil {
+				user, err := c.Session.User(c.Creator)
+				if err != nil {
+					log.Error(err)
+					c.templateVars.GameName = "Game Unknown"
+				}
+				game, err := getMainActivityUser(c.Session, c.PrimaryChannel, user)
+				if err != nil {
+					log.Error(err)
+					c.templateVars.GameName = "Game Unknown"
+				}
+				c.templateVars.GameName = game
+			} else if c.SecondaryChannel != nil {
+				game, err := getMainActivity(c.Session, c.SecondaryChannel)
+				if err != nil {
+					log.Error(err)
+					c.templateVars.GameName = "Game Unknown"
+				}
+				c.templateVars.GameName = game
+			} else {
+				c.templateVars.GameName = "Game Unknown"
+			}
+
 		case v == "partysize":
 			c.templateVars.PartySize = "N/A"
 		case v == "creatorname":
@@ -93,4 +118,77 @@ func loopChannelsRename() {
 	//2. For each channel, get name from template
 	//3. If channel name is different from current name, rename channel
 	//4. If channel name is the same, do nothing
+}
+
+func getUsersInChannel(s *discordgo.Session, channel *discordgo.Channel) ([]string, error) {
+	//1. Get all users in channel
+	guild, err := s.State.Guild(channel.GuildID)
+	if err != nil {
+		return []string{}, err
+	}
+
+	var users []string
+	for _, c := range guild.VoiceStates {
+		if c.ChannelID == channel.ID {
+			users = append(users, c.UserID)
+		}
+	}
+
+	//2. Return users
+	return users, nil
+}
+
+func getUserPresence(s *discordgo.Session, GuildID string, UserID string) *discordgo.Presence {
+	presence, err := s.State.Presence(GuildID, UserID)
+	if err != nil {
+		log.Error(err)
+	}
+	return presence
+}
+
+func getMainActivity(s *discordgo.Session, channel *discordgo.Channel) (string, error) {
+	//1. Get all users in channel
+	users, err := getUsersInChannel(s, channel)
+	if err != nil {
+		return "", err
+	}
+
+	//2. For each user, get presence
+	var activity []string
+
+	for _, user := range users {
+		presence := getUserPresence(s, channel.GuildID, user)
+		for _, p := range presence.Activities {
+			if p.Type == discordgo.ActivityTypeGame || p.Type == discordgo.ActivityTypeCompeting {
+				activity = append(activity, p.Name)
+			}
+		}
+	}
+
+	//3. Get most common activity
+	duplicates := make(map[string]int)
+	for _, v := range activity {
+		// https://staticcheck.io/docs/checks#S1036
+		duplicates[v] += 1
+	}
+	var mostCommon string
+	var mostCommonCount int
+	for k, v := range duplicates {
+		if v > mostCommonCount {
+			mostCommon = k
+			mostCommonCount = v
+		}
+	}
+
+	return mostCommon, nil
+}
+
+func getMainActivityUser(s *discordgo.Session, channel *discordgo.Channel, User *discordgo.User) (string, error) {
+	presence := getUserPresence(s, channel.GuildID, User.ID)
+	for _, p := range presence.Activities {
+		if p.Type == discordgo.ActivityTypeGame || p.Type == discordgo.ActivityTypeCompeting {
+			return p.Name, nil
+		}
+	}
+	return "", nil
 }

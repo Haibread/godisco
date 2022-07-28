@@ -5,6 +5,7 @@ import "gorm.io/gorm"
 type ManagedChannel struct {
 	gorm.Model
 	NameTemplate string `json:"name_template"`
+	NameDefault  string `json:"name_default"`
 	ChannelID    string `json:"channel_id"`
 	GuildID      string `json:"guild_id"`
 }
