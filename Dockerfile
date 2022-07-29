@@ -19,7 +19,7 @@ FROM alpine:3.16
 
 RUN apk --no-cache add ca-certificates
 
-LABEL maintainer="Haibread"
+LABEL org.opencontainers.image.source="https://github.com/Haibread/godisco"
 
 VOLUME [ "/app/config" ]
 WORKDIR /app
