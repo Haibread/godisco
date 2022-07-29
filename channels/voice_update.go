@@ -282,7 +282,7 @@ func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, Crea
 func CreatePrimaryChannel(s *discordgo.Session, GuildID string, NameTemplate string, NameDefault string) (*discordgo.Channel, error) {
 
 	channelToCreate := &discordgo.GuildChannelCreateData{
-		Name: "➕ Nouveau Vocal",
+		Name: "➕ New Channel",
 		Type: discordgo.ChannelTypeGuildVoice,
 	}
 

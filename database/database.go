@@ -1,6 +1,8 @@
 package database
 
 import (
+	"io/ioutil"
+
 	"github.com/Haibread/godisco/logging"
 	"github.com/Haibread/godisco/models"
 	"go.uber.org/zap"
@@ -18,12 +20,13 @@ func init() {
 
 func InitDB() {
 	var err error
-	DB, err = gorm.Open(sqlite.Open("channels.db"), &gorm.Config{
+	createDBifNotExists()
+	DB, err = gorm.Open(sqlite.Open("./config/channels.db"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 		//Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {
-		log.Fatal("Failed to connect to the database")
+		log.Fatalf("Failed to connect to the database, err %v", err)
 	}
 
 	DB.AutoMigrate(&models.PrimaryChannel{})
@@ -38,4 +41,10 @@ func InitDB() {
 
 func GetDB() *gorm.DB {
 	return DB
+}
+
+func createDBifNotExists() {
+	if _, err := ioutil.ReadFile("./config/channels.db"); err != nil {
+		log.Info("Creating db")
+	}
 }

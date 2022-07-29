@@ -56,7 +56,7 @@ func initconfig() {
 	viper.SetDefault("token", "")
 	viper.SetDefault("bot_status", "Developped by Hybrid#0001")
 	viper.SetConfigName("config")
-	viper.AddConfigPath(".")
+	viper.AddConfigPath("config")
 	viper.SetConfigType("yaml")
 	err := viper.ReadInConfig()
 	if err != nil {
@@ -67,11 +67,3 @@ func initconfig() {
 	})
 	viper.WatchConfig()
 }
-
-/* func getPresence(s *discordgo.Session, GuildID string, UserID string) *discordgo.Presence {
-	presence, err := s.State.Presence(GuildID, UserID)
-	if err != nil {
-		log.Error(err)
-	}
-	return presence
-} */
