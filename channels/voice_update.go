@@ -62,11 +62,12 @@ func createChildChannel(s *discordgo.Session, i *discordgo.VoiceStateUpdate, par
 	}
 
 	channelToCreate := &discordgo.GuildChannelCreateData{
-		Name:     channelName,
-		Type:     discordgo.ChannelTypeGuildVoice,
-		Bitrate:  parentChannel.Bitrate,
-		Position: parentChannel.Position - 1,
-		ParentID: parentChannel.ParentID,
+		Name:                 channelName,
+		Type:                 discordgo.ChannelTypeGuildVoice,
+		Bitrate:              parentChannel.Bitrate,
+		Position:             parentChannel.Position - 1,
+		ParentID:             parentChannel.ParentID,
+		PermissionOverwrites: parentChannel.PermissionOverwrites,
 	}
 
 	// Create the new channel
@@ -276,4 +277,27 @@ func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, Crea
 		channelName = fmt.Sprintf("#%d %s", (channelrank)+1, channelDefaultName)
 	}
 	return channelName, nil
+}
+
+func CreatePrimaryChannel(s *discordgo.Session, GuildID string, NameTemplate string, NameDefault string) (*discordgo.Channel, error) {
+
+	channelToCreate := &discordgo.GuildChannelCreateData{
+		Name: "➕ Nouveau Vocal",
+		Type: discordgo.ChannelTypeGuildVoice,
+	}
+
+	// Create the new channel
+	chanCreated, err := s.GuildChannelCreateComplex(GuildID, *channelToCreate)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add channel in database.database.DB
+	query := database.DB.Create(&models.ManagedChannel{NameTemplate: NameTemplate, NameDefault: NameDefault, ChannelID: chanCreated.ID, GuildID: GuildID})
+
+	if query.Error != nil {
+		return nil, query.Error
+	}
+
+	return chanCreated, nil
 }

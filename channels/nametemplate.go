@@ -111,6 +111,30 @@ func neededVariables(template string) []string {
 	return toReturn
 }
 
+// Test a template with fake data
+func TestTemplate(s *discordgo.Session, tpl string) error {
+	vars := &templateVars{
+		Icao:        "Alfa",
+		Number:      "1",
+		GameName:    "Game Unknown",
+		PartySize:   "14",
+		CreatorName: "User",
+	}
+
+	templateName, err := template.New("test_template").Parse(tpl)
+	if err != nil {
+		return err
+	}
+
+	var tpl_out bytes.Buffer
+	err = templateName.Execute(&tpl_out, vars)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func getICAO(position int) string {
 	return icao[position]
 }

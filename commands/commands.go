@@ -12,10 +12,40 @@ var (
 			Name:        "ping",
 			Description: "Basic command",
 		},
+		{
+			Type:        discordgo.ChatApplicationCommand,
+			Name:        "help",
+			Description: "Show commands help",
+		},
+		{
+			Type:        discordgo.ChatApplicationCommand,
+			Name:        "create-primary",
+			Description: "Creates a new primary channel",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "default-name",
+					Description: "The default name of a new secondary channel",
+					Required:    true,
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "template",
+					Description: "The template of a new secondary channel",
+					Required:    true,
+				},
+			},
+		},
 	}
-	commandHandlerss = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
+	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"ping": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			Ping(s, i)
+		},
+		"help": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			Help(s, i)
+		},
+		"create-primary": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			CreatePrimary(s, i)
 		},
 	}
 )
@@ -27,7 +57,6 @@ func RegisterCommands(dg *discordgo.Session, log *zap.SugaredLogger) {
 
 func addCommands(dg *discordgo.Session, log *zap.SugaredLogger) {
 	log.Info("Adding commands")
-	//_, err := dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, "", botCommands)
 	User, _ := dg.User("@me")
 	UserID := User.ID
 	_, err := dg.ApplicationCommandBulkOverwrite(UserID, "", botCommands)
@@ -39,7 +68,7 @@ func addCommands(dg *discordgo.Session, log *zap.SugaredLogger) {
 func addHandlers(dg *discordgo.Session) {
 	dg.AddHandler(
 		func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			if h, ok := commandHandlerss[i.ApplicationCommandData().Name]; ok {
+			if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
 				h(s, i)
 			}
 		})
