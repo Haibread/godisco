@@ -24,8 +24,8 @@ func userJoined(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 		log.Error(err)
 		return
 	}
-	if isChannelManaged(s, i.VoiceState.ChannelID) {
-		_, err := createChildChannelandMove(s, i, channel, i.VoiceState.UserID)
+	if isChannelPrimary(s, i.VoiceState.ChannelID) {
+		_, err := createSecondaryChannelandMove(s, i, channel, i.VoiceState.UserID)
 		//_, err := createChildChannel(channel)
 		if err != nil {
 			log.Error(err)
@@ -34,14 +34,14 @@ func userJoined(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 
 }
 
-func createChildChannelandMove(s *discordgo.Session, i *discordgo.VoiceStateUpdate, parentChannel *discordgo.Channel, UserID string) (*discordgo.Channel, error) {
+func createSecondaryChannelandMove(s *discordgo.Session, i *discordgo.VoiceStateUpdate, parentChannel *discordgo.Channel, UserID string) (*discordgo.Channel, error) {
 
 	channel, err := s.State.Channel(parentChannel.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	createdChannel, err := createChildChannel(s, i, channel)
+	createdChannel, err := createSecondaryChannel(s, i, channel)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func createChildChannelandMove(s *discordgo.Session, i *discordgo.VoiceStateUpda
 	return createdChannel, nil
 }
 
-func createChildChannel(s *discordgo.Session, i *discordgo.VoiceStateUpdate, parentChannel *discordgo.Channel) (*discordgo.Channel, error) {
+func createSecondaryChannel(s *discordgo.Session, i *discordgo.VoiceStateUpdate, parentChannel *discordgo.Channel) (*discordgo.Channel, error) {
 
 	channelName, err := getChannelName(s, parentChannel, i.UserID)
 	if err != nil {
@@ -77,29 +77,29 @@ func createChildChannel(s *discordgo.Session, i *discordgo.VoiceStateUpdate, par
 	}
 
 	// Add channel in database.database.DB
-	database.DB.Create(&models.ManagedChannelCreated{Name: chanCreated.Name, ChannelID: chanCreated.ID, GuildID: chanCreated.GuildID, ParentChannelID: parentChannel.ID, CreatorID: i.UserID})
+	database.DB.Create(&models.SecondaryChannel{Name: chanCreated.Name, ChannelID: chanCreated.ID, GuildID: chanCreated.GuildID, ParentChannelID: parentChannel.ID, CreatorID: i.UserID})
 	return chanCreated, nil
 }
 
 func userMoved(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 	// Check if the channel is managed
-	if isChannelManaged(s, i.BeforeUpdate.ChannelID) {
+	if isChannelPrimary(s, i.BeforeUpdate.ChannelID) {
 		log.Debugf("Last channel %v was a primary channel, no action required", i.BeforeUpdate.ChannelID)
-	} else if isChannelManaged(s, i.ChannelID) {
+	} else if isChannelPrimary(s, i.ChannelID) {
 		log.Debugf("Current channel %v is a primary channel, we need to create a new channel", i.ChannelID)
 		channel, err := s.Channel(i.ChannelID)
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		_, err = createChildChannelandMove(s, i, channel, i.UserID)
+		_, err = createSecondaryChannelandMove(s, i, channel, i.UserID)
 		if err != nil {
 			log.Error(err)
 		}
 	}
 
 	// Check if the channel is in managed channel created
-	if isChannelManagedCreated(s, i.BeforeUpdate.ChannelID) {
+	if isChannelSecondary(s, i.BeforeUpdate.ChannelID) {
 		log.Debugf("Last channel %v was a secondary channel, checking if empty", i.BeforeUpdate.ChannelID)
 		if isChannelEmpty(s, i.GuildID, i.BeforeUpdate.ChannelID) {
 			log.Debugf("Secondary channel %v is empty on guild %v, deleting it", i.BeforeUpdate.ChannelID, i.GuildID)
@@ -108,11 +108,11 @@ func userMoved(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 				log.Error(err)
 			}
 			log.Debugf("Removing secondary channel %v record from database.DB", i.BeforeUpdate.ChannelID)
-			database.DB.Unscoped().Where("channel_id = ?", i.BeforeUpdate.ChannelID).Delete(&models.ManagedChannelCreated{})
+			database.DB.Unscoped().Where("channel_id = ?", i.BeforeUpdate.ChannelID).Delete(&models.SecondaryChannel{})
 		} else {
 			log.Debugf("Secondary channel %v is not empty, no actions required", i.BeforeUpdate.ChannelID)
 		}
-	} else if isChannelManagedCreated(s, i.ChannelID) {
+	} else if isChannelSecondary(s, i.ChannelID) {
 		log.Debugf("Current channel %v is a secondary channel, no actions required", i.ChannelID)
 	}
 }
@@ -137,8 +137,8 @@ func isChannelEmpty(s *discordgo.Session, GuildID string, ChannelID string) bool
 	}
 }
 
-func isChannelManaged(s *discordgo.Session, ChannelID string) bool {
-	var channel models.ManagedChannel
+func isChannelPrimary(s *discordgo.Session, ChannelID string) bool {
+	var channel models.PrimaryChannel
 
 	managed_channel := database.DB.Select("channel_id").Where("channel_id = ?", ChannelID).First(&channel)
 
@@ -158,8 +158,8 @@ func isChannelManaged(s *discordgo.Session, ChannelID string) bool {
 	return false
 }
 
-func isChannelManagedCreated(s *discordgo.Session, ChannelID string) bool {
-	var channel models.ManagedChannelCreated
+func isChannelSecondary(s *discordgo.Session, ChannelID string) bool {
+	var channel models.SecondaryChannel
 
 	managed_channel := database.DB.Select("channel_id").Where("channel_id = ?", ChannelID).First(&channel)
 
@@ -179,8 +179,8 @@ func isChannelManagedCreated(s *discordgo.Session, ChannelID string) bool {
 	return false
 }
 
-func getManagedChannelTemplate(s *discordgo.Session, ChannelID string) (string, error) {
-	var channel models.ManagedChannel
+func getPrimaryChannelTemplate(s *discordgo.Session, ChannelID string) (string, error) {
+	var channel models.PrimaryChannel
 	managed_channel := database.DB.Select("name_template").Where("channel_id = ?", ChannelID).First(&channel)
 
 	if managed_channel.Error != nil {
@@ -200,7 +200,7 @@ func getManagedChannelTemplate(s *discordgo.Session, ChannelID string) (string, 
 }
 
 func getPrimaryChannelDefaultName(s *discordgo.Session, ChannelID string) (string, error) {
-	var channel models.ManagedChannel
+	var channel models.PrimaryChannel
 	query := database.DB.Select("name_default").Where("channel_id = ?", ChannelID).First(&channel)
 
 	if query.Error != nil {
@@ -222,7 +222,7 @@ func getPrimaryChannelDefaultName(s *discordgo.Session, ChannelID string) (strin
 // Return the number of secondary channels already created
 func getManagedChannelCreatedRank(s *discordgo.Session, ParentChannelID string) (int, error) {
 	var count int64
-	query := database.DB.Model(&models.ManagedChannelCreated{}).Where("parent_channel_id = ?", ParentChannelID).Count(&count)
+	query := database.DB.Model(&models.SecondaryChannel{}).Where("parent_channel_id = ?", ParentChannelID).Count(&count)
 	if query.Error != nil {
 		if errors.Is(query.Error, gorm.ErrRecordNotFound) {
 			return 0, nil
@@ -245,7 +245,7 @@ func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, Crea
 		return "nil", err
 	}
 	// Get Template
-	channelTemplateName, err := getManagedChannelTemplate(s, parentChannel.ID)
+	channelTemplateName, err := getPrimaryChannelTemplate(s, parentChannel.ID)
 	if err != nil {
 		channelTemplateName = ""
 
@@ -293,7 +293,7 @@ func CreatePrimaryChannel(s *discordgo.Session, GuildID string, NameTemplate str
 	}
 
 	// Add channel in database.database.DB
-	query := database.DB.Create(&models.ManagedChannel{NameTemplate: NameTemplate, NameDefault: NameDefault, ChannelID: chanCreated.ID, GuildID: GuildID})
+	query := database.DB.Create(&models.PrimaryChannel{NameTemplate: NameTemplate, NameDefault: NameDefault, ChannelID: chanCreated.ID, GuildID: GuildID})
 
 	if query.Error != nil {
 		return nil, query.Error

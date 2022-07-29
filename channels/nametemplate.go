@@ -141,7 +141,7 @@ func getICAO(position int) string {
 
 func renameAllSecondaryChannels(s *discordgo.Session) {
 	//1. Get all channels from db
-	var channels []models.ManagedChannelCreated
+	var channels []models.SecondaryChannel
 	query := database.DB.Find(&channels)
 	if query.Error != nil {
 		log.Errorf("Failed to get all secondary channels %v", query.Error)

@@ -18,7 +18,7 @@ func init() {
 
 func InitDB() {
 	var err error
-	DB, err = gorm.Open(sqlite.Open("test.db"), &gorm.Config{
+	DB, err = gorm.Open(sqlite.Open("channels.db"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 		//Logger: logger.Default.LogMode(logger.Info),
 	})
@@ -26,14 +26,14 @@ func InitDB() {
 		log.Fatal("Failed to connect to the database")
 	}
 
-	DB.AutoMigrate(&models.ManagedChannel{})
-	DB.AutoMigrate(&models.ManagedChannelCreated{})
+	DB.AutoMigrate(&models.PrimaryChannel{})
+	DB.AutoMigrate(&models.SecondaryChannel{})
 
 	//Test data
 	log.Info("Creating db entries")
 	//var nameTemplate string = "{{.Icao}} {{.GameName}}"
 	var nameTemplate string = "{{.GameName}}"
-	DB.FirstOrCreate(&models.ManagedChannel{ChannelID: "941649245168091136", GuildID: "759083170619588669", NameTemplate: nameTemplate, NameDefault: "Général"})
+	DB.FirstOrCreate(&models.PrimaryChannel{ChannelID: "941649245168091136", GuildID: "759083170619588669", NameTemplate: nameTemplate, NameDefault: "Général"})
 }
 
 func GetDB() *gorm.DB {

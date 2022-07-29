@@ -2,7 +2,7 @@ package models
 
 import "gorm.io/gorm"
 
-type ManagedChannel struct {
+type PrimaryChannel struct {
 	gorm.Model
 	NameTemplate string `json:"name_template"`
 	NameDefault  string `json:"name_default"`
@@ -10,7 +10,7 @@ type ManagedChannel struct {
 	GuildID      string `json:"guild_id"`
 }
 
-type ManagedChannelCreated struct {
+type SecondaryChannel struct {
 	gorm.Model
 	Name            string `json:"name"`
 	ChannelID       string `json:"channel_id"`
