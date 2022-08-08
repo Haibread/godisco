@@ -32,6 +32,5 @@ jobs:
       uses: docker/build-push-action@v3
       with:
         tags: ghcr.io/haibread/godisco:latest
-        registry: ghcr.io
         push: true
     
