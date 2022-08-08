@@ -32,8 +32,8 @@ func Help(s *discordgo.Session, i *discordgo.InteractionCreate) {
 }
 
 func CreatePrimary(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	userPerm, _ := s.UserChannelPermissions(i.User.ID, i.GuildID)
-	if userPerm&discordgo.PermissionManageChannels != 0 {
+	userPerm := i.Member.Permissions
+	if userPerm&discordgo.PermissionManageChannels == 0 {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
