@@ -34,13 +34,6 @@ type templateVars struct {
 
 var icao = [26]string{"Alfa", "Beta", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Juliett", "Kilo", "Lima", "Mike", "November", "Oscar", "Papa", "Quebec", "Romeo", "Sierra", "Tango", "Uniform", "Victor", "Whiskey", "X-ray", "Yankee", "Zulu"}
 
-func RenameChannel(channel *discordgo.Channel, template string) {
-	//TODO
-	//1. Get channel name from template
-	//2. If channel name is different from current name, rename channel
-	//3. If channel name is the same, do nothing
-}
-
 func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 	vars := neededVariables(c.Template)
 	for _, v := range vars {
