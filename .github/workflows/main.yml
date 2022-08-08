@@ -31,7 +31,7 @@ jobs:
     - name: Push to Github Packages
       uses: docker/build-push-action@v3
       with:
-        tags: haibread/godisco:latest
+        tags: ghcr.io/haibread/godisco:latest
         registry: ghcr.io
         push: true
     
