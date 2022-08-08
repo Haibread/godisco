@@ -77,6 +77,15 @@ func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 				c.templateVars.GameName = "Game Unknown"
 			}
 
+			if c.templateVars.GameName == "" {
+				var err error
+				c.templateVars.GameName, err = getPrimaryChannelDefaultName(c.Session, c.PrimaryChannel.ID)
+				if err != nil {
+					log.Error(err)
+					c.templateVars.GameName = "Game Unknown"
+				}
+			}
+
 		case v == "partysize":
 			c.templateVars.PartySize = "N/A"
 		case v == "creatorname":
