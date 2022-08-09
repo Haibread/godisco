@@ -42,8 +42,7 @@ func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 		case v == "icao":
 			c.templateVars.Icao = getICAO(c.Rank)
 		case v == "number":
-			// We don't want 0 but we want 1
-			c.templateVars.Number = fmt.Sprintf("%d", (c.Rank)+1)
+			c.templateVars.Number = fmt.Sprintf("%d", c.Rank)
 		case v == "gamename":
 			fmt.Println("Getting game name")
 			// If primary channel
@@ -150,22 +149,19 @@ func renameAllSecondaryChannels(s *discordgo.Session) {
 	}
 	//2. For each channel, get name from template
 	for _, c := range channels {
-		fmt.Printf("secondary channel to maybe rename %+v\n", c)
 
 		parentChannel, err := s.State.Channel(c.ParentChannelID)
 		if err != nil {
 			log.Error(err)
 		}
 
-		channelName, err := getChannelName(s, parentChannel, c.CreatorID)
+		channelName, err := getChannelName(s, parentChannel, c.CreatorID, c.ChannelID)
 		if err != nil {
 			log.Error(err)
 		}
 		//3. If channel name is different from current name, rename channel
 		currentChannel, err := s.State.Channel(c.ChannelID)
 		currentChannelName := currentChannel.Name
-		fmt.Printf("Wanted channel name: %s\n", channelName)
-		fmt.Printf("Current channel name: %s\n", currentChannelName)
 		if err != nil {
 			log.Error(err)
 		}

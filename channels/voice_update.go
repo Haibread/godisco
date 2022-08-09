@@ -56,7 +56,7 @@ func createSecondaryChannelandMove(s *discordgo.Session, i *discordgo.VoiceState
 
 func createSecondaryChannel(s *discordgo.Session, i *discordgo.VoiceStateUpdate, parentChannel *discordgo.Channel) (*discordgo.Channel, error) {
 
-	channelName, err := getChannelName(s, parentChannel, i.UserID)
+	channelName, err := getChannelName(s, parentChannel, i.UserID, "")
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +220,10 @@ func getPrimaryChannelDefaultName(s *discordgo.Session, ChannelID string) (strin
 }
 
 // Return the number of secondary channels already created
-func getManagedChannelCreatedRank(s *discordgo.Session, ParentChannelID string) (int, error) {
+// If no channel exists, return 1
+// If x channels already exists but it's not the channel, return x+1
+// If x channels already exists and it's the channel, return x
+func getSecondaryChannelRank(s *discordgo.Session, ParentChannelID string, ChannelID string) (int, error) {
 	var count int64
 	query := database.DB.Model(&models.SecondaryChannel{}).Where("parent_channel_id = ?", ParentChannelID).Count(&count)
 	if query.Error != nil {
@@ -231,16 +234,28 @@ func getManagedChannelCreatedRank(s *discordgo.Session, ParentChannelID string) 
 		}
 	}
 
-	if count >= (1) {
-		return int(count - 1), nil
+	var secondary_count int64 = 0
+	if ChannelID != "" {
+		query := database.DB.Model(&models.SecondaryChannel{}).Where("channel_id = ?", ChannelID).Count(&secondary_count)
+		if query.Error != nil {
+			if errors.Is(query.Error, gorm.ErrRecordNotFound) {
+				return 0, nil
+			} else {
+				return 0, fmt.Errorf("error while getting secondary channel count : %v", query.Error)
+			}
+		}
+	}
+
+	if secondary_count > 0 {
+		return int(count), nil
 	} else {
-		return 0, nil
+		return int(count + 1), nil
 	}
 }
 
-func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, CreatorID string) (string, error) {
+func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, secondaryChannelID string, CreatorID string) (string, error) {
 	// Get channel rank
-	channelrank, err := getManagedChannelCreatedRank(s, parentChannel.ID)
+	channelrank, err := getSecondaryChannelRank(s, parentChannel.ID, secondaryChannelID)
 	if err != nil {
 		return "nil", err
 	}
