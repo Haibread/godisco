@@ -255,7 +255,13 @@ func getSecondaryChannelRank(s *discordgo.Session, ParentChannelID string, Chann
 
 func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, secondaryChannel *discordgo.Channel, CreatorID string) (string, error) {
 	// Get channel rank
-	channelrank, err := getSecondaryChannelRank(s, parentChannel.ID, secondaryChannel.ID)
+	var channelrank int
+	var err error
+	if secondaryChannel == nil {
+		channelrank, err = getSecondaryChannelRank(s, parentChannel.ID, "")
+	} else {
+		channelrank, err = getSecondaryChannelRank(s, parentChannel.ID, secondaryChannel.ID)
+	}
 	if err != nil {
 		return "nil", err
 	}
