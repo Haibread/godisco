@@ -56,7 +56,7 @@ func createSecondaryChannelandMove(s *discordgo.Session, i *discordgo.VoiceState
 
 func createSecondaryChannel(s *discordgo.Session, i *discordgo.VoiceStateUpdate, parentChannel *discordgo.Channel) (*discordgo.Channel, error) {
 
-	channelName, err := getChannelName(s, parentChannel, "", i.UserID)
+	channelName, err := getChannelName(s, parentChannel, nil, i.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -253,9 +253,9 @@ func getSecondaryChannelRank(s *discordgo.Session, ParentChannelID string, Chann
 	}
 }
 
-func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, secondaryChannelID string, CreatorID string) (string, error) {
+func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, secondaryChannel *discordgo.Channel, CreatorID string) (string, error) {
 	// Get channel rank
-	channelrank, err := getSecondaryChannelRank(s, parentChannel.ID, secondaryChannelID)
+	channelrank, err := getSecondaryChannelRank(s, parentChannel.ID, secondaryChannel.ID)
 	if err != nil {
 		return "nil", err
 	}
@@ -266,13 +266,25 @@ func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, seco
 
 	}
 
-	//Template struct
-	channel_tpl := &ChanneltoRename{
-		PrimaryChannel: parentChannel,
-		Creator:        CreatorID,
-		Template:       channelTemplateName,
-		Session:        s,
-		Rank:           channelrank,
+	var channel_tpl = &ChanneltoRename{}
+	if secondaryChannel == nil {
+		channel_tpl = &ChanneltoRename{
+			PrimaryChannel: parentChannel,
+			Creator:        CreatorID,
+			Template:       channelTemplateName,
+			Session:        s,
+			Rank:           channelrank,
+		}
+	} else if secondaryChannel != nil {
+		channel_tpl = &ChanneltoRename{
+			SecondaryChannel: secondaryChannel,
+			Creator:          CreatorID,
+			Template:         channelTemplateName,
+			Session:          s,
+			Rank:             channelrank,
+		}
+	} else {
+		return "nil", fmt.Errorf("error while getting channel type: %v", err)
 	}
 
 	var channelName string

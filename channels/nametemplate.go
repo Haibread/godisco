@@ -155,7 +155,12 @@ func renameAllSecondaryChannels(s *discordgo.Session) {
 			log.Error(err)
 		}
 
-		channelName, err := getChannelName(s, parentChannel, c.CreatorID, c.ChannelID)
+		secondaryChannel, err := s.State.Channel(c.ChannelID)
+		if err != nil {
+			log.Error(err)
+		}
+
+		channelName, err := getChannelName(s, parentChannel, secondaryChannel, c.CreatorID)
 		if err != nil {
 			log.Error(err)
 		}
