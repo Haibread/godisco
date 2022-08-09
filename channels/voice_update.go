@@ -56,7 +56,7 @@ func createSecondaryChannelandMove(s *discordgo.Session, i *discordgo.VoiceState
 
 func createSecondaryChannel(s *discordgo.Session, i *discordgo.VoiceStateUpdate, parentChannel *discordgo.Channel) (*discordgo.Channel, error) {
 
-	channelName, err := getChannelName(s, parentChannel, i.UserID, "")
+	channelName, err := getChannelName(s, parentChannel, "", i.UserID)
 	if err != nil {
 		return nil, err
 	}
