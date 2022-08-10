@@ -2,6 +2,7 @@ package channels
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/Haibread/godisco/models"
 	"github.com/bwmarrin/discordgo"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type ChanneltoRename struct {
@@ -71,7 +73,17 @@ func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 
 			if c.templateVars.GameName == "" {
 				var err error
-				c.templateVars.GameName, err = getPrimaryChannelDefaultName(c.Session, c.PrimaryChannel.ID)
+				var ParentChanID models.SecondaryChannel
+				query := database.DB.Select("parent_channel_id").Where("channel_id = ?", c.SecondaryChannel.ID).First(&ParentChanID)
+				if query.Error != nil {
+					if errors.Is(query.Error, gorm.ErrRecordNotFound) {
+						//log.Debugf("database.DB Record for Channel ID \"%v\" has not been found", ChannelID)
+						return "", nil
+					} else {
+						return "", fmt.Errorf("error while getting channel default name: %v", query.Error)
+					}
+				}
+				c.templateVars.GameName, err = getPrimaryChannelDefaultName(c.Session, ParentChanID.ParentChannelID)
 				if err != nil {
 					log.Error(err)
 					c.templateVars.GameName = "Game Unknown"
