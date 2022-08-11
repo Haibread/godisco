@@ -71,7 +71,7 @@ func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 				c.templateVars.GameName = "Game Unknown"
 			}
 
-			if c.templateVars.GameName == "" {
+			if c.templateVars.GameName == "" && c.SecondaryChannel != nil {
 				var err error
 				var ParentChanID models.SecondaryChannel
 				query := database.DB.Select("parent_channel_id").Where("channel_id = ?", c.SecondaryChannel.ID).First(&ParentChanID)
