@@ -33,6 +33,6 @@ jobs:
       with:
         tags: |
           ghcr.io/haibread/godisco:dev-latest
-          ghcr.io/haibread/godisco:dev-{{ github.sha }}
+          ghcr.io/haibread/godisco:dev-${{ github.sha }}
         push: true
     
