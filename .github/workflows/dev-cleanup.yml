@@ -18,4 +18,4 @@ jobs:
           older-than: 7 # days
           keep-last: 2
           untagged: true
-          tag-regex: dev-*
+          tag-regex: ^(dev-.*)
