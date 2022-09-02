@@ -250,9 +250,15 @@ func getSecondaryChannelRank(s *discordgo.Session, ParentChannelID string, Chann
 	count := 0
 	found := false
 	for _, channel := range secondary_channel_ids {
-		int_channel_id, err := strconv.Atoi(ChannelID)
-		if err != nil {
-			return 0, fmt.Errorf("error while converting channel ID to int: %v", err)
+		var int_channel_id int
+		var err error
+		if ChannelID != "" {
+			int_channel_id, err = strconv.Atoi(ChannelID)
+			if err != nil {
+				return 0, fmt.Errorf("error while converting channel ID to int: %v", err)
+			}
+		} else {
+			int_channel_id = 0
 		}
 
 		// If found current channel_id, return value+1
