@@ -3,6 +3,8 @@ package channels
 import (
 	"errors"
 	"fmt"
+	"sort"
+	"strconv"
 
 	"github.com/Haibread/godisco/database"
 	"github.com/Haibread/godisco/logging"
@@ -224,33 +226,60 @@ func getPrimaryChannelDefaultName(s *discordgo.Session, ChannelID string) (strin
 // If x channels already exists but it's not the channel, return x+1
 // If x channels already exists and it's the channel, return x
 func getSecondaryChannelRank(s *discordgo.Session, ParentChannelID string, ChannelID string) (int, error) {
-	var count int64
-	query := database.DB.Model(&models.SecondaryChannel{}).Where("parent_channel_id = ?", ParentChannelID).Count(&count)
-	if query.Error != nil {
-		if errors.Is(query.Error, gorm.ErrRecordNotFound) {
-			return 0, nil
-		} else {
-			return 0, fmt.Errorf("error while getting secondary channels count : %v", query.Error)
-		}
-	}
-
-	var secondary_count int64 = 0
-	if ChannelID != "" {
-		query := database.DB.Model(&models.SecondaryChannel{}).Where("channel_id = ?", ChannelID).Count(&secondary_count)
-		if query.Error != nil {
-			if errors.Is(query.Error, gorm.ErrRecordNotFound) {
-				return 0, nil
-			} else {
-				return 0, fmt.Errorf("error while getting secondary channel count : %v", query.Error)
+	/*
+		var secondary_count int64 = 0
+		if ChannelID != "" {
+			query := database.DB.Model(&models.SecondaryChannel{}).Where("channel_id = ?", ChannelID).Count(&secondary_count)
+			if query.Error != nil {
+				if errors.Is(query.Error, gorm.ErrRecordNotFound) {
+					return 0, nil
+				} else {
+					return 0, fmt.Errorf("error while getting secondary channel count : %v", query.Error)
+				}
 			}
 		}
+
+		if secondary_count > 0 {
+			return int(count), nil
+		} else {
+			return int(count + 1), nil
+		} */
+	var channels []models.SecondaryChannel
+
+	secondary_channels := database.DB.Select("channel_id").Where("parent_id = ?", ParentChannelID).Find(&channels)
+	if secondary_channels.Error != nil {
+		if errors.Is(secondary_channels.Error, gorm.ErrRecordNotFound) {
+			return 1, nil
+		} else {
+			return 0, fmt.Errorf("error while getting secondary channel count : %v", secondary_channels.Error)
+		}
 	}
 
-	if secondary_count > 0 {
-		return int(count), nil
-	} else {
-		return int(count + 1), nil
+	var secondary_channel_ids []int
+
+	for _, channel := range channels {
+		int_channel_id, err := strconv.Atoi(channel.ChannelID)
+		if err != nil {
+			return 0, fmt.Errorf("error while converting channel ID to int: %v", err)
+		}
+		secondary_channel_ids = append(secondary_channel_ids, int_channel_id)
 	}
+	sort.Ints(secondary_channel_ids)
+
+	count := 0
+	for _, channel := range secondary_channel_ids {
+		int_channel_id, err := strconv.Atoi(ChannelID)
+		if err != nil {
+			return 0, fmt.Errorf("error while converting channel ID to int: %v", err)
+		}
+		if channel == int_channel_id {
+			return count + 1, nil
+		} else {
+			count += 1
+		}
+	}
+
+	return count, nil
 }
 
 func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, secondaryChannel *discordgo.Channel, CreatorID string) (string, error) {
