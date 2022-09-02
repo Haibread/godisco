@@ -3,10 +3,10 @@ module github.com/Haibread/godisco
 go 1.17
 
 require (
-	github.com/bwmarrin/discordgo v0.25.0
+	github.com/bwmarrin/discordgo v0.26.1
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/spf13/viper v1.12.0
-	go.uber.org/zap v1.22.0
+	go.uber.org/zap v1.23.0
 	gorm.io/driver/sqlite v1.3.6
 	gorm.io/gorm v1.23.8
 )
