@@ -248,17 +248,25 @@ func getSecondaryChannelRank(s *discordgo.Session, ParentChannelID string, Chann
 
 	// Count and compare
 	count := 0
+	found := false
 	for _, channel := range secondary_channel_ids {
 		int_channel_id, err := strconv.Atoi(ChannelID)
 		if err != nil {
 			return 0, fmt.Errorf("error while converting channel ID to int: %v", err)
 		}
 
+		// If found current channel_id, return value+1
 		if channel == int_channel_id {
+			found = true
 			return count + 1, nil
 		} else {
 			count += 1
 		}
+
+	}
+
+	if !found {
+		return count + 1, nil
 	}
 
 	return count, nil
