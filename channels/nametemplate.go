@@ -189,8 +189,14 @@ func renameAllSecondaryChannels(s *discordgo.Session) {
 		if err != nil {
 			log.Error(err)
 		}
+
 		if channelName != currentChannelName {
-			s.ChannelEdit(c.ChannelID, channelName)
+			_, err := s.ChannelEdit(c.ChannelID, &discordgo.ChannelEdit{
+				Name: channelName,
+			})
+			if err != nil {
+				log.Error(err)
+			}
 		}
 		//4. If channel name is the same, do nothing
 	}
