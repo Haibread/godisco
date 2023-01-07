@@ -6,7 +6,7 @@ require (
 	github.com/bwmarrin/discordgo v0.26.1
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/spf13/viper v1.13.0
-	go.uber.org/zap v1.23.0
+	go.uber.org/zap v1.24.0
 	gorm.io/driver/sqlite v1.3.6
 	gorm.io/gorm v1.23.9
 )
