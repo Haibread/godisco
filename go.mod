@@ -7,8 +7,8 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/spf13/viper v1.15.0
 	go.uber.org/zap v1.24.0
-	gorm.io/driver/sqlite v1.4.4
-	gorm.io/gorm v1.24.6
+	gorm.io/driver/sqlite v1.5.1
+	gorm.io/gorm v1.25.0
 )
 
 require (
