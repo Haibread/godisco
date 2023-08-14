@@ -8,7 +8,7 @@ require (
 	github.com/spf13/viper v1.16.0
 	go.uber.org/zap v1.24.0
 	gorm.io/driver/sqlite v1.5.2
-	gorm.io/gorm v1.25.2-0.20230530020048-26663ab9bf55
+	gorm.io/gorm v1.25.3
 )
 
 require (
