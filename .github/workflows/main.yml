@@ -27,7 +27,7 @@ jobs:
         password: ${{ secrets.GHCR_PAT }}
 
     - name: Push to Github Packages
-      uses: docker/build-push-action@v4
+      uses: docker/build-push-action@v5
       with:
         tags: ghcr.io/haibread/godisco:latest
         push: true
