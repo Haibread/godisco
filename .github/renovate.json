@@ -6,12 +6,10 @@
     ":semanticCommits"
   ],
   "baseBranches": ["main"],
-  "schedule": ["before 5am on monday"],
   "labels": ["dependencies"],
   "packageRules": [
     {
       "matchManagers": ["github-actions"],
-      "schedule": ["at any time"],
       "groupName": "github-actions"
     },
     {
@@ -25,7 +23,6 @@
     }
   ],
   "vulnerabilityAlerts": {
-    "labels": ["security"],
-    "schedule": ["at any time"]
+    "labels": ["security"]
   }
 }
