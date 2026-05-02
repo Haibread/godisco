@@ -46,7 +46,6 @@ func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 		case v == "number":
 			c.templateVars.Number = fmt.Sprintf("%d", c.Rank)
 		case v == "gamename":
-			fmt.Println("Getting game name")
 			// If primary channel
 			if c.PrimaryChannel != nil {
 				user, err := c.Session.User(c.Creator)
@@ -251,8 +250,7 @@ func getMainActivity(s *discordgo.Session, channel *discordgo.Channel) (string, 
 	//3. Get most common activity
 	duplicates := make(map[string]int)
 	for _, v := range activity {
-		// https://staticcheck.io/docs/checks#S1036
-		duplicates[v] += 1
+		duplicates[v]++
 	}
 	var mostCommon string
 	var mostCommonCount int

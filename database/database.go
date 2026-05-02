@@ -1,9 +1,10 @@
 package database
 
 import (
-	"io/ioutil"
+	"errors"
+	"io/fs"
+	"os"
 
-	"github.com/Haibread/godisco/logging"
 	"github.com/Haibread/godisco/models"
 	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"
@@ -14,8 +15,9 @@ import (
 var DB *gorm.DB
 var log *zap.SugaredLogger
 
-func init() {
-	log = logging.InitLogger()
+// SetLogger injects the logger used by this package. Must be called before InitDB.
+func SetLogger(l *zap.SugaredLogger) {
+	log = l
 }
 
 func InitDB() {
@@ -23,20 +25,17 @@ func InitDB() {
 	createDBifNotExists()
 	DB, err = gorm.Open(sqlite.Open("./config/channels.db"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
-		//Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {
 		log.Fatalf("Failed to connect to the database, err %v", err)
 	}
 
-	DB.AutoMigrate(&models.PrimaryChannel{})
-	DB.AutoMigrate(&models.SecondaryChannel{})
-
-	//Test data
-	log.Info("Creating db entries")
-	//var nameTemplate string = "{{.Icao}} {{.GameName}}"
-	var nameTemplate string = "{{.GameName}}"
-	DB.FirstOrCreate(&models.PrimaryChannel{ChannelID: "941649245168091136", GuildID: "759083170619588669", NameTemplate: nameTemplate, NameDefault: "Général"})
+	if err := DB.AutoMigrate(&models.PrimaryChannel{}); err != nil {
+		log.Fatalf("Failed to migrate PrimaryChannel: %v", err)
+	}
+	if err := DB.AutoMigrate(&models.SecondaryChannel{}); err != nil {
+		log.Fatalf("Failed to migrate SecondaryChannel: %v", err)
+	}
 }
 
 func GetDB() *gorm.DB {
@@ -44,7 +43,7 @@ func GetDB() *gorm.DB {
 }
 
 func createDBifNotExists() {
-	if _, err := ioutil.ReadFile("./config/channels.db"); err != nil {
+	if _, err := os.Stat("./config/channels.db"); errors.Is(err, fs.ErrNotExist) {
 		log.Info("Creating db")
 	}
 }

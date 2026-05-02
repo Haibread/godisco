@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/Haibread/godisco/database"
-	"github.com/Haibread/godisco/logging"
 	"github.com/Haibread/godisco/models"
 	"github.com/bwmarrin/discordgo"
 	"go.uber.org/zap"
@@ -16,8 +15,10 @@ import (
 
 var log *zap.SugaredLogger
 
-func init() {
-	log = logging.InitLogger()
+// SetLogger injects the logger used by this package. Must be called before
+// any handler or loop runs.
+func SetLogger(l *zap.SugaredLogger) {
+	log = l
 }
 
 func userJoined(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
@@ -28,7 +29,6 @@ func userJoined(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 	}
 	if isChannelPrimary(s, i.VoiceState.ChannelID) {
 		_, err := createSecondaryChannelandMove(s, i, channel, i.VoiceState.UserID)
-		//_, err := createChildChannel(channel)
 		if err != nil {
 			log.Error(err)
 		}
@@ -141,44 +141,26 @@ func isChannelEmpty(s *discordgo.Session, GuildID string, ChannelID string) bool
 
 func isChannelPrimary(s *discordgo.Session, ChannelID string) bool {
 	var channel models.PrimaryChannel
-
-	managed_channel := database.DB.Select("channel_id").Where("channel_id = ?", ChannelID).First(&channel)
-
-	if managed_channel.Error != nil {
-		if errors.Is(managed_channel.Error, gorm.ErrRecordNotFound) {
-			//log.Debugf("database.DB Record for Channel ID \"%v\" has not been found", ChannelID)
-		} else {
-			log.Error(managed_channel.Error)
+	q := database.DB.Select("channel_id").Where("channel_id = ?", ChannelID).First(&channel)
+	if q.Error != nil {
+		if !errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			log.Error(q.Error)
 		}
 		return false
 	}
-
-	if channel.ChannelID != "" {
-		return true
-	}
-
-	return false
+	return channel.ChannelID != ""
 }
 
 func isChannelSecondary(s *discordgo.Session, ChannelID string) bool {
 	var channel models.SecondaryChannel
-
-	managed_channel := database.DB.Select("channel_id").Where("channel_id = ?", ChannelID).First(&channel)
-
-	if managed_channel.Error != nil {
-		if errors.Is(managed_channel.Error, gorm.ErrRecordNotFound) {
-			//log.Debugf("database.DB Record for Channel ID \"%v\" has not been found", ChannelID)
-		} else {
-			log.Error(managed_channel.Error)
+	q := database.DB.Select("channel_id").Where("channel_id = ?", ChannelID).First(&channel)
+	if q.Error != nil {
+		if !errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			log.Error(q.Error)
 		}
 		return false
 	}
-
-	if channel.ChannelID != "" {
-		return true
-	}
-
-	return false
+	return channel.ChannelID != ""
 }
 
 func getPrimaryChannelTemplate(s *discordgo.Session, ChannelID string) (string, error) {
@@ -187,7 +169,6 @@ func getPrimaryChannelTemplate(s *discordgo.Session, ChannelID string) (string, 
 
 	if managed_channel.Error != nil {
 		if errors.Is(managed_channel.Error, gorm.ErrRecordNotFound) {
-			//log.Debugf("database.DB Record for Channel ID \"%v\" has not been found", ChannelID)
 			return "", nil
 		} else {
 			return "", fmt.Errorf("error while getting channel template: %v", managed_channel.Error)
@@ -207,7 +188,6 @@ func getPrimaryChannelDefaultName(s *discordgo.Session, ChannelID string) (strin
 
 	if query.Error != nil {
 		if errors.Is(query.Error, gorm.ErrRecordNotFound) {
-			//log.Debugf("database.DB Record for Channel ID \"%v\" has not been found", ChannelID)
 			return "", nil
 		} else {
 			return "", fmt.Errorf("error while getting channel default name: %v", query.Error)
