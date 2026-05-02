@@ -19,7 +19,7 @@ func setupTestDB(t *testing.T) {
 	log = zap.NewNop().Sugar()
 
 	prev := database.DB
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
 	})
 	if err != nil {
