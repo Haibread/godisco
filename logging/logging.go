@@ -2,20 +2,14 @@ package logging
 
 import "go.uber.org/zap"
 
-/* var (
-	log *zap.SugaredLogger
-) */
-
-func InitLogger() *zap.SugaredLogger {
+// InitLogger creates a new development sugared logger and returns it
+// alongside a sync function. The caller is responsible for deferring
+// the sync function so buffered log entries are flushed at shutdown.
+func InitLogger() (*zap.SugaredLogger, func() error) {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		panic(err)
 	}
-	defer logger.Sync()
-	log := logger.Sugar()
-	return log
+	sugar := logger.Sugar()
+	return sugar, logger.Sync
 }
-
-/* func GetLogger() *zap.SugaredLogger {
-	return log
-} */

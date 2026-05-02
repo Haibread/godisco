@@ -43,24 +43,23 @@ func CreatePrimary(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	// Get Variables
-	content := ""
 	options := i.ApplicationCommandData().Options
+	defaultName, defaultNameOk := optionString(options, "default-name")
+	template, templateOk := optionString(options, "template")
 
-	defaultName, _ := options[0].Value.(string)
-	template := options[1].Value.(string)
-
-	// Check both var templating with fake data
-	if err := channels.TestTemplate(s, defaultName); err != nil {
-		content += "An error occured while testing the template"
-	} else if err := channels.TestTemplate(s, template); err != nil {
-		content += "An error occured while testing the template"
-	} else {
-		// Try to create channel
-		if _, err := channels.CreatePrimaryChannel(s, i.GuildID, template, defaultName); err != nil {
-			content += "An error occured while creating the channel"
+	content := ""
+	switch {
+	case !defaultNameOk || !templateOk:
+		content = "Missing or invalid options."
+	default:
+		if err := channels.TestTemplate(s, defaultName); err != nil {
+			content = "An error occured while testing the template"
+		} else if err := channels.TestTemplate(s, template); err != nil {
+			content = "An error occured while testing the template"
+		} else if _, err := channels.CreatePrimaryChannel(s, i.GuildID, template, defaultName); err != nil {
+			content = "An error occured while creating the channel"
 		} else {
-			content += fmt.Sprintf("Created primary with Default Name : '%s' and the template : '%s' \nYou can now change the name/settings/position... of the channel without any issue !", defaultName, template)
+			content = fmt.Sprintf("Created primary with Default Name : '%s' and the template : '%s' \nYou can now change the name/settings/position... of the channel without any issue !", defaultName, template)
 		}
 	}
 
@@ -70,4 +69,17 @@ func CreatePrimary(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			Content: content,
 		},
 	})
+}
+
+// optionString safely extracts a string option by name from a slash command's
+// option list. Returns false if the option is missing or the wrong type.
+func optionString(options []*discordgo.ApplicationCommandInteractionDataOption, name string) (string, bool) {
+	for _, opt := range options {
+		if opt.Name != name {
+			continue
+		}
+		v, ok := opt.Value.(string)
+		return v, ok
+	}
+	return "", false
 }

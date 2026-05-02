@@ -17,38 +17,44 @@ import (
 )
 
 func main() {
-	log := logging.InitLogger()
+	logger, syncLogger := logging.InitLogger()
+	defer syncLogger()
+
+	channels.SetLogger(logger)
+	database.SetLogger(logger)
+
 	initconfig()
 	database.InitDB()
 
 	dg, err := discordgo.New("Bot " + viper.GetString("token"))
 	if err != nil {
-		log.Fatal("error creating discord session, ", err)
+		logger.Fatal("error creating discord session, ", err)
 	}
 
 	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildVoiceStates | discordgo.IntentsGuildPresences
 
-	log.Info("Adding handlers")
-	commands.RegisterCommands(dg, log)
+	logger.Info("Adding handlers")
+	if err := commands.RegisterCommands(dg, logger); err != nil {
+		logger.Fatalf("Failed to register commands: %v", err)
+	}
 	dg.AddHandler(channels.VCUpdate)
 
-	log.Info("Opening Websocket connection")
+	logger.Info("Opening Websocket connection")
 	err = dg.Open()
 	if err != nil {
-		log.Fatalf("Could not open Websocket connection %s", err)
+		logger.Fatalf("Could not open Websocket connection %s", err)
 	}
 
 	dg.UpdateListeningStatus(viper.GetString("bot_status"))
 
 	channels.StartChannelLoops(dg)
 	// Wait here until CTRL-C or other term signal is received.
-	log.Info("Bot is now running.  Press CTRL-C to exit.")
+	logger.Info("Bot is now running.  Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
-	log.Info("Shutting down")
-	// Commands delete
-	commands.RemoveCommands(dg, log)
+	logger.Info("Shutting down")
+	commands.RemoveCommands(dg, logger)
 	dg.Close()
 }
 
