@@ -7,6 +7,9 @@
   ],
   "baseBranches": ["main"],
   "labels": ["dependencies"],
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 0,
+  "branchConcurrentLimit": 0,
   "packageRules": [
     {
       "matchManagers": ["github-actions"],

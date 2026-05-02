@@ -9,9 +9,10 @@ RUN mkdir /app
 
 WORKDIR /app
 
-COPY . .
-
+COPY go.mod go.sum ./
 RUN go mod download
+
+COPY . .
 
 RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o godisco /app/app/godisco
 
