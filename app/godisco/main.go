@@ -60,7 +60,7 @@ func main() {
 
 func initconfig() {
 	viper.SetDefault("token", "")
-	viper.SetDefault("bot_status", "Developped by Hybrid#0001")
+	viper.SetDefault("bot_status", "")
 	viper.SetConfigName("config")
 	viper.AddConfigPath("config")
 	viper.SetConfigType("yaml")

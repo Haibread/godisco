@@ -50,13 +50,13 @@ changes.
 ```yaml
 # config/config.yaml
 token: "YOUR_DISCORD_BOT_TOKEN"
-bot_status: "Developped by Hybrid#0001"
+bot_status: ""
 ```
 
-| Key          | Default                          | Description                              |
-| ------------ | -------------------------------- | ---------------------------------------- |
-| `token`      | `""`                             | Discord bot token (required)             |
-| `bot_status` | `"Developped by Hybrid#0001"`    | "Listening to ..." status string         |
+| Key          | Default | Description                              |
+| ------------ | ------- | ---------------------------------------- |
+| `token`      | `""`    | Discord bot token (required)             |
+| `bot_status` | `""`    | "Listening to ..." status string         |
 
 The SQLite database is created automatically at `config/channels.db` on first
 run.
