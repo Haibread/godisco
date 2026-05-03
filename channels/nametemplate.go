@@ -40,12 +40,12 @@ func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 	vars := neededVariables(c.Template)
 	for _, v := range vars {
 		v = strings.ToLower(v)
-		switch {
-		case v == "icao":
+		switch v {
+		case "icao":
 			c.templateVars.Icao = getICAO(c.Rank)
-		case v == "number":
+		case "number":
 			c.templateVars.Number = fmt.Sprintf("%d", c.Rank)
-		case v == "gamename":
+		case "gamename":
 			// If primary channel
 			if c.PrimaryChannel != nil {
 				user, err := c.Session.User(c.Creator)
@@ -96,9 +96,9 @@ func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 				}
 			}
 
-		case v == "partysize":
+		case "partysize":
 			c.templateVars.PartySize = "N/A"
-		case v == "creatorname":
+		case "creatorname":
 			User, err := c.Session.User(c.Creator)
 			if err != nil {
 				log.Error(err)

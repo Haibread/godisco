@@ -37,11 +37,11 @@ func CreatePrimary(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		content = "Missing or invalid options."
 	default:
 		if err := channels.TestTemplate(s, defaultName); err != nil {
-			content = "An error occured while testing the template"
+			content = "An error occurred while testing the template"
 		} else if err := channels.TestTemplate(s, template); err != nil {
-			content = "An error occured while testing the template"
+			content = "An error occurred while testing the template"
 		} else if _, err := channels.CreatePrimaryChannel(s, i.GuildID, template, defaultName); err != nil {
-			content = "An error occured while creating the channel"
+			content = "An error occurred while creating the channel"
 		} else {
 			content = fmt.Sprintf("Created primary with Default Name : '%s' and the template : '%s' \nYou can now change the name/settings/position... of the channel without any issue !", defaultName, template)
 		}

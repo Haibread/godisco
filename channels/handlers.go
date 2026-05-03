@@ -8,13 +8,13 @@ func VCUpdate(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 	if i.BeforeUpdate == nil {
 		userJoined(s, i)
 
-	} else if i.BeforeUpdate.ChannelID != "" && i.VoiceState.ChannelID != i.BeforeUpdate.ChannelID && i.VoiceState.ChannelID != "" {
+	} else if i.BeforeUpdate.ChannelID != "" && i.ChannelID != i.BeforeUpdate.ChannelID && i.ChannelID != "" {
 		userMoved(s, i)
 
-	} else if i.VoiceState.ChannelID == i.BeforeUpdate.ChannelID {
+	} else if i.ChannelID == i.BeforeUpdate.ChannelID {
 		return
 
-	} else if i.VoiceState.ChannelID == "" {
+	} else if i.ChannelID == "" {
 		userMoved(s, i)
 	}
 

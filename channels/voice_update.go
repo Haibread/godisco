@@ -28,8 +28,8 @@ func userJoined(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 			"channel_id", i.ChannelID, "user_id", i.UserID, "error", err)
 		return
 	}
-	if isChannelPrimary(s, i.VoiceState.ChannelID) {
-		if _, err := createSecondaryChannelandMove(s, i, channel, i.VoiceState.UserID); err != nil {
+	if isChannelPrimary(s, i.ChannelID) {
+		if _, err := createSecondaryChannelandMove(s, i, channel, i.UserID); err != nil {
 			log.Errorw("user joined: create secondary and move",
 				"primary_channel_id", channel.ID, "user_id", i.UserID, "error", err)
 		}
@@ -227,34 +227,23 @@ func getSecondaryChannelRank(s *discordgo.Session, ParentChannelID string, Chann
 
 	// Count and compare
 	count := 0
-	found := false
 	for _, channel := range secondary_channel_ids {
-		var int_channel_id int
-		var err error
+		int_channel_id := 0
 		if ChannelID != "" {
+			var err error
 			int_channel_id, err = strconv.Atoi(ChannelID)
 			if err != nil {
 				return 0, fmt.Errorf("error while converting channel ID to int: %w", err)
 			}
-		} else {
-			int_channel_id = 0
 		}
 
-		// If found current channel_id, return value+1
 		if channel == int_channel_id {
-			found = true
 			return count + 1, nil
-		} else {
-			count += 1
 		}
-
+		count += 1
 	}
 
-	if !found {
-		return count + 1, nil
-	}
-
-	return count, nil
+	return count + 1, nil
 }
 
 func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, secondaryChannel *discordgo.Channel, CreatorID string) (string, error) {
