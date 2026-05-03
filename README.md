@@ -16,14 +16,14 @@ variables for rank, ICAO phonetic alphabet, the active game, and the creator.
   channel; leave it empty, it disappears.
 - Templated channel names with variables (`{{.Icao}}`, `{{.Number}}`,
   `{{.GameName}}`, `{{.PartySize}}`, `{{.CreatorName}}`).
-- Periodic rename loop that keeps secondary channel names in sync with the
-  current activity / game (every 5 minutes — Discord rate limit).
+- Secondary channel names follow the current activity / game: renamed when a
+  member's game changes and swept every 5 minutes, at most one rename per
+  channel every 5 minutes (Discord rate limit).
 - Cleanup at startup: channels emptied or deleted while the bot was offline
   are removed.
 - SQLite-backed state via GORM, persisted in `config/channels.db` by
   default.
-- Slash commands for runtime configuration (`/ping`, `/help`,
-  `/create-primary`).
+- Slash commands to manage primary channels (see *Slash commands*).
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and the reasoning behind
 it.
@@ -45,17 +45,19 @@ changes.
 # config/config.yaml
 token: "YOUR_DISCORD_BOT_TOKEN"
 bot_status: ""
+bot_activity_type: "Listening"
 ```
 
 Each setting comes from, in order of precedence, a command-line flag, an
 environment variable, the config file, then its default.
 
-| Key           | Variable        | Flag            | Default                | Description                                  |
-| ------------- | --------------- | --------------- | ---------------------- | -------------------------------------------- |
-| —             | `CONFIG_FILE`   | `--config-file` | `config/config.yaml`   | Config file to read                          |
-| `token`       | `DISCORD_TOKEN` | —               | `""`                   | Discord bot token (required)                 |
-| `bot_status`  | `BOT_STATUS`    | —               | `""`                   | "Listening to ..." status string             |
-| `db_path`     | `DB_PATH`       | `--db-path`     | `config/channels.db`   | SQLite database, created on first run        |
+| Key                 | Variable        | Flag            | Default              | Description                                                                 |
+| ------------------- | --------------- | --------------- | -------------------- | --------------------------------------------------------------------------- |
+| —                   | `CONFIG_FILE`   | `--config-file` | `config/config.yaml` | Config file to read                                                         |
+| `token`             | `DISCORD_TOKEN` | —               | `""`                 | Discord bot token (required)                                                |
+| `bot_status`        | `BOT_STATUS`    | —               | `""`                 | Status string shown in the bot's profile. Empty disables status entirely.   |
+| `bot_activity_type` | —               | —               | `Listening`          | Activity verb: `Playing`, `Listening`, `Watching`, `Competing`, `Streaming` |
+| `db_path`           | `DB_PATH`       | `--db-path`     | `config/channels.db` | SQLite database, created on first run                                       |
 
 Relative paths resolve against the working directory, `/app` in the image,
 where a moved database must sit in a mounted directory owned by UID 65532.
@@ -122,11 +124,15 @@ echo 'token: "YOUR_TOKEN"' > config/config.yaml
 
 ## Slash commands
 
-| Command              | Permissions       | Description                                                |
-| -------------------- | ----------------- | ---------------------------------------------------------- |
-| `/ping`              | anyone            | Reply with command delay and gateway heartbeat latency.    |
-| `/help`              | anyone            | Placeholder.                                               |
-| `/create-primary`    | `Manage Channels` | Create a new primary voice channel (see below).            |
+| Command              | Permissions       | Description                                                       |
+| -------------------- | ----------------- | ----------------------------------------------------------------- |
+| `/ping`              | anyone            | Reply with command delay and gateway heartbeat latency.           |
+| `/help [topic]`      | anyone            | Show commands and template-field reference (filterable by topic). |
+| `/create-primary`    | `Manage Channels` | Create a new primary voice channel (see below).                   |
+| `/list-primaries`    | anyone            | List managed primary channels in the current server.              |
+| `/delete-primary`    | `Manage Channels` | Remove a managed primary channel and its DB record.               |
+
+All replies are ephemeral — only the user who ran the command sees them.
 
 ### `/create-primary`
 
@@ -167,6 +173,39 @@ falls back to `#<rank> <default-name>`.
 
 The rename loop re-evaluates templates every 5 minutes per secondary channel
 to track game changes.
+
+## Troubleshooting
+
+**`{{.GameName}}` always renders as the default name / "Game Unknown".**
+Enable the privileged *Server Members* and *Presence* intents in the Discord
+developer portal for the bot's application — without `GUILD_PRESENCES` the
+gateway never sends activity data, so godisco can't see what anyone is
+playing.
+
+**Channel name doesn't update when someone changes game.**
+Discord rate-limits channel renames to 2 per 10 minutes per channel. godisco
+renames a channel at most once every 5 minutes — both the periodic sweep and
+the presence-triggered rename go through the same throttle. If you just
+changed game and the name didn't update, wait up to 5 minutes.
+
+**`/create-primary` fails with "Failed to create channel: HTTP 403 Forbidden".**
+The bot's role is missing `Manage Channels` in the guild (or in the category
+where the channel would be created). Check the role's permissions and any
+category-level overrides.
+
+**Bot creates the secondary channel but doesn't move the user.**
+The bot also needs `Move Members` to drag the user into the freshly-created
+secondary. `Manage Channels` alone isn't enough.
+
+**`/delete-primary` reports "primary still has N active secondary channel(s)".**
+godisco refuses to delete a primary while there are live secondaries spawned
+from it (deleting it would orphan them). Wait for the secondaries to empty
+out — they auto-delete — then try again.
+
+**`/create-primary` reports "Invalid `template`: ..."**.
+The error includes the underlying Go `text/template` parse or execute
+message. The most common case is referencing a field that doesn't exist
+(e.g. `{{.Foo}}`); use `/help template` for the full field list.
 
 ## Contributing
 

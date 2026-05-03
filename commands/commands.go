@@ -12,29 +12,61 @@ var (
 		{
 			Type:        discordgo.ChatApplicationCommand,
 			Name:        "ping",
-			Description: "Basic command",
+			Description: "Show command and gateway latency",
 		},
 		{
 			Type:        discordgo.ChatApplicationCommand,
 			Name:        "help",
-			Description: "Show commands help",
+			Description: "Show commands and template-field reference",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "topic",
+					Description: "Show help for a single topic",
+					Required:    false,
+					Choices: []*discordgo.ApplicationCommandOptionChoice{
+						{Name: "commands", Value: "commands"},
+						{Name: "template", Value: "template"},
+					},
+				},
+			},
 		},
 		{
 			Type:        discordgo.ChatApplicationCommand,
 			Name:        "create-primary",
-			Description: "Creates a new primary channel",
+			Description: "Create a new primary voice channel",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
 					Name:        "default-name",
-					Description: "The default name of a new secondary channel",
+					Description: "Fallback name used when the template renders empty",
 					Required:    true,
 				},
 				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "template",
-					Description: "The template of a new secondary channel",
-					Required:    true,
+					Type:         discordgo.ApplicationCommandOptionString,
+					Name:         "template",
+					Description:  "Go text/template string for the secondary channel name",
+					Required:     true,
+					Autocomplete: true,
+				},
+			},
+		},
+		{
+			Type:        discordgo.ChatApplicationCommand,
+			Name:        "list-primaries",
+			Description: "List managed primary voice channels in this server",
+		},
+		{
+			Type:        discordgo.ChatApplicationCommand,
+			Name:        "delete-primary",
+			Description: "Delete a managed primary voice channel",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:         discordgo.ApplicationCommandOptionChannel,
+					Name:         "channel",
+					Description:  "The primary voice channel to delete",
+					Required:     true,
+					ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildVoice},
 				},
 			},
 		},
@@ -43,6 +75,11 @@ var (
 		"ping":           Ping,
 		"help":           Help,
 		"create-primary": CreatePrimary,
+		"list-primaries": ListPrimaries,
+		"delete-primary": DeletePrimary,
+	}
+	autocompleteHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
+		"create-primary": CreatePrimaryAutocomplete,
 	}
 )
 
@@ -74,8 +111,15 @@ func addCommands(dg *discordgo.Session, log *zap.SugaredLogger) error {
 func addHandlers(dg *discordgo.Session) {
 	dg.AddHandler(
 		func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
-				h(s, i)
+			switch i.Type {
+			case discordgo.InteractionApplicationCommand:
+				if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
+					h(s, i)
+				}
+			case discordgo.InteractionApplicationCommandAutocomplete:
+				if h, ok := autocompleteHandlers[i.ApplicationCommandData().Name]; ok {
+					h(s, i)
+				}
 			}
 		})
 }

@@ -177,6 +177,24 @@ func TestChannelDelete_DropsRecord(t *testing.T) {
 	}
 }
 
+func TestChannelDelete_ClearsRenameThrottle(t *testing.T) {
+	setupTestDB(t)
+	seedSecondary(t, "100")
+	lastRenameMu.Lock()
+	lastRenameTimes["100"] = time.Now()
+	lastRenameMu.Unlock()
+	t.Cleanup(func() { clearRenameThrottle("100") })
+
+	ChannelDelete(nil, &discordgo.ChannelDelete{Channel: &discordgo.Channel{ID: "100"}})
+
+	lastRenameMu.Lock()
+	_, throttled := lastRenameTimes["100"]
+	lastRenameMu.Unlock()
+	if throttled {
+		t.Error("throttle entry of a deleted channel should be dropped")
+	}
+}
+
 func TestLiveChannels(t *testing.T) {
 	existing, occupied := liveChannels(&discordgo.Guild{
 		Channels:    []*discordgo.Channel{{ID: "100"}, {ID: "200"}},

@@ -65,9 +65,12 @@ it. Discord answering "unknown channel" counts as already deleted.
 **Manual deletions.** `channels.ChannelDelete` drops the record of a secondary
 channel as soon as it disappears from Discord, whoever removed it.
 
-**Rename loop.** `channels/loops.go` walks every record every 5 minutes, renders
+**Renames.** `channels/loops.go` walks every record every 5 minutes, renders
 its template and renames the channel when the name changed. A channel missing
 from the state is logged and skipped, so one bad record cannot stop the sweep.
+`channels.PresenceUpdate` renames a member's secondary channel as soon as their
+activity changes. Both paths share one per-channel throttle, dropped with the
+channel's record.
 
 ## State and persistence
 
@@ -103,8 +106,9 @@ the sorted IDs of its siblings, and a new channel ranks after all of them. No
 counter can drift, but a stale record shifts every number, which is what
 reconciliation protects against.
 
-**The rename interval is fixed at 5 minutes.** Discord rate-limits channel
-renames to 2 per 10 minutes per channel.
+**A channel is renamed at most once every 5 minutes.** Discord rate-limits
+channel renames to 2 per 10 minutes per channel, so the presence-triggered
+renames go through the same throttle as the sweep instead of their own.
 
 ## Invariants and constraints
 

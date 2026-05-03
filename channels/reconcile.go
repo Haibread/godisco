@@ -67,5 +67,6 @@ func isUnknownChannel(err error) bool {
 }
 
 func deleteSecondaryRecord(channelID string) error {
+	clearRenameThrottle(channelID)
 	return database.DB.Unscoped().Where("channel_id = ?", channelID).Delete(&models.SecondaryChannel{}).Error
 }
