@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -43,91 +44,132 @@ const TemplateHelp = "```\n" +
 	"{{.Icao}}        NATO phonetic word for the channel rank\n" +
 	"{{.Number}}      channel rank among siblings of the same primary\n" +
 	"{{.GameName}}    most common active game in the channel\n" +
-	"{{.PartySize}}   placeholder, currently \"N/A\"\n" +
+	"{{.PartySize}}   number of users currently in the channel\n" +
 	"{{.CreatorName}} username of the channel creator\n" +
 	"```"
 
 func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 	vars := neededVariables(c.Template)
 	for _, v := range vars {
-		v = strings.ToLower(v)
-		switch v {
+		switch strings.ToLower(v) {
 		case "icao":
 			c.templateVars.Icao = getICAO(c.Rank)
 		case "number":
 			c.templateVars.Number = fmt.Sprintf("%d", c.Rank)
 		case "gamename":
-			// If primary channel
-			if c.PrimaryChannel != nil {
-				user, err := c.Session.User(c.Creator)
-				if err != nil {
-					log.Error(err)
-					c.templateVars.GameName = "Game Unknown"
-				}
-				game, err := getMainActivityUser(c.Session, c.PrimaryChannel, user)
-				if err != nil {
-					log.Error(err)
-					c.templateVars.GameName = "Game Unknown"
-				}
-				c.templateVars.GameName = game
-			} else if c.SecondaryChannel != nil {
-				game, err := getMainActivity(c.Session, c.SecondaryChannel)
-				if err != nil {
-					log.Error(err)
-					c.templateVars.GameName = "Game Unknown"
-				}
-				c.templateVars.GameName = game
-			} else {
-				c.templateVars.GameName = "Game Unknown"
-			}
-
-			// If game empty, and initiating secondary channel creation
-			if c.templateVars.GameName == "" && c.SecondaryChannel != nil {
-				var err error
-				var ParentChanID models.SecondaryChannel
-				query := database.DB.Select("parent_channel_id").Where("channel_id = ?", c.SecondaryChannel.ID).First(&ParentChanID)
-				if query.Error != nil {
-					if errors.Is(query.Error, gorm.ErrRecordNotFound) {
-						return "", nil
-					} else {
-						return "", fmt.Errorf("error while getting channel default name: %w", query.Error)
-					}
-				}
-				c.templateVars.GameName, err = getPrimaryChannelDefaultName(c.Session, ParentChanID.ParentChannelID)
-				if err != nil {
-					log.Error(err)
-					c.templateVars.GameName = "Game Unknown"
-				}
-			} else if c.templateVars.GameName == "" && c.PrimaryChannel != nil {
-				var err error
-				c.templateVars.GameName, err = getPrimaryChannelDefaultName(c.Session, c.PrimaryChannel.ID)
-				if err != nil {
-					log.Error(err)
-					c.templateVars.GameName = "Game Unknown"
-				}
-			}
-
-		case "partysize":
-			c.templateVars.PartySize = "N/A"
-		case "creatorname":
-			User, err := c.Session.User(c.Creator)
+			game, err := c.resolveGameName()
 			if err != nil {
-				log.Error(err)
+				log.Errorw("resolve game name", "error", err)
+				game = "Game Unknown"
 			}
-			c.templateVars.CreatorName = User.Username
+			c.templateVars.GameName = game
+		case "partysize":
+			c.templateVars.PartySize = c.resolvePartySize()
+		case "creatorname":
+			user, err := c.Session.User(c.Creator)
+			if err != nil {
+				log.Errorw("fetch creator user", "user_id", c.Creator, "error", err)
+				continue
+			}
+			c.templateVars.CreatorName = user.Username
 		}
 	}
+
 	templateName, err := template.New("channel_name").Parse(c.Template)
 	if err != nil {
 		return "", err
 	}
 
-	var tpl_out bytes.Buffer
-	err = templateName.Execute(&tpl_out, c.templateVars)
+	var tplOut bytes.Buffer
+	if err := templateName.Execute(&tplOut, c.templateVars); err != nil {
+		return "", err
+	}
+	return tplOut.String(), nil
+}
+
+// resolveGameName returns the game name to use for the current channel,
+// falling back to the primary channel's default-name when no game can be
+// detected. Returns "Game Unknown" only when neither is available.
+func (c ChanneltoRename) resolveGameName() (string, error) {
+	var game string
+
+	switch {
+	case c.PrimaryChannel != nil:
+		user, err := c.Session.User(c.Creator)
+		if err != nil {
+			return "", fmt.Errorf("fetch creator: %w", err)
+		}
+		g, err := getMainActivityUser(c.Session, c.PrimaryChannel, user)
+		if err != nil {
+			return "", err
+		}
+		game = g
+	case c.SecondaryChannel != nil:
+		g, err := getMainActivity(c.Session, c.SecondaryChannel)
+		if err != nil {
+			return "", err
+		}
+		game = g
+	default:
+		return "Game Unknown", nil
+	}
+
+	if game != "" {
+		return game, nil
+	}
+
+	parentID, err := c.parentChannelID()
 	if err != nil {
 		return "", err
 	}
-	return tpl_out.String(), nil
+	if parentID == "" {
+		return "", nil
+	}
+
+	fallback, err := getPrimaryChannelDefaultName(c.Session, parentID)
+	if err != nil {
+		return "", err
+	}
+	if fallback == "" {
+		return "Game Unknown", nil
+	}
+	return fallback, nil
+}
+
+func (c ChanneltoRename) parentChannelID() (string, error) {
+	if c.PrimaryChannel != nil {
+		return c.PrimaryChannel.ID, nil
+	}
+	if c.SecondaryChannel == nil {
+		return "", nil
+	}
+	var parent models.SecondaryChannel
+	q := database.DB.Select("parent_channel_id").Where("channel_id = ?", c.SecondaryChannel.ID).First(&parent)
+	if q.Error != nil {
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return "", nil
+		}
+		return "", fmt.Errorf("lookup parent of %s: %w", c.SecondaryChannel.ID, q.Error)
+	}
+	return parent.ParentChannelID, nil
+}
+
+// resolvePartySize counts users currently in the channel. For a brand-new
+// secondary (PrimaryChannel set, SecondaryChannel nil) the size is 1: the
+// user about to be moved into it.
+func (c ChanneltoRename) resolvePartySize() string {
+	if c.SecondaryChannel == nil {
+		if c.PrimaryChannel != nil {
+			return "1"
+		}
+		return "0"
+	}
+	users, err := getUsersInChannel(c.Session, c.SecondaryChannel)
+	if err != nil {
+		log.Errorw("count users in channel", "channel_id", c.SecondaryChannel.ID, "error", err)
+		return "0"
+	}
+	return fmt.Sprintf("%d", len(users))
 }
 
 func neededVariables(template string) []string {
@@ -175,38 +217,40 @@ func renameAllSecondaryChannels(s *discordgo.Session) {
 		log.Errorw("rename loop: list secondary channels", "error", err)
 		return
 	}
-
 	for _, c := range channels {
-		parentChannel, err := s.State.Channel(c.ParentChannelID)
-		if err != nil {
-			log.Errorw("rename loop: fetch parent channel",
-				"parent_channel_id", c.ParentChannelID, "channel_id", c.ChannelID, "error", err)
-			continue
-		}
-
-		secondaryChannel, err := s.State.Channel(c.ChannelID)
-		if err != nil {
-			log.Errorw("rename loop: fetch secondary channel",
-				"channel_id", c.ChannelID, "error", err)
-			continue
-		}
-
-		channelName, err := getChannelName(s, parentChannel, secondaryChannel, c.CreatorID)
-		if err != nil {
-			log.Errorw("rename loop: compute channel name",
-				"channel_id", c.ChannelID, "error", err)
-			continue
-		}
-
-		if channelName == secondaryChannel.Name {
-			continue
-		}
-
-		if _, err := s.ChannelEdit(c.ChannelID, &discordgo.ChannelEdit{Name: channelName}); err != nil {
-			log.Errorw("rename loop: rename channel",
-				"channel_id", c.ChannelID, "new_name", channelName, "error", err)
-		}
+		renameSecondaryIfDue(s, c.ChannelID)
 	}
+}
+
+// renameOneSecondaryChannel performs the full rename pipeline for a single
+// channel: look up its DB record, compute the templated name, and rename
+// via the Discord API if it has changed.
+func renameOneSecondaryChannel(s *discordgo.Session, channelID string) error {
+	var record models.SecondaryChannel
+	if err := database.DB.Where("channel_id = ?", channelID).First(&record).Error; err != nil {
+		return fmt.Errorf("lookup secondary channel %s: %w", channelID, err)
+	}
+
+	parentChannel, err := s.State.Channel(record.ParentChannelID)
+	if err != nil {
+		return fmt.Errorf("fetch parent channel %s: %w", record.ParentChannelID, err)
+	}
+	secondaryChannel, err := s.State.Channel(channelID)
+	if err != nil {
+		return fmt.Errorf("fetch secondary channel: %w", err)
+	}
+
+	channelName, err := getChannelName(s, parentChannel, secondaryChannel, record.CreatorID)
+	if err != nil {
+		return fmt.Errorf("compute channel name: %w", err)
+	}
+	if channelName == secondaryChannel.Name {
+		return nil
+	}
+	if _, err := s.ChannelEdit(channelID, &discordgo.ChannelEdit{Name: channelName}); err != nil {
+		return fmt.Errorf("rename channel: %w", err)
+	}
+	return nil
 }
 
 func getUsersInChannel(s *discordgo.Session, channel *discordgo.Channel) ([]string, error) {
@@ -230,23 +274,25 @@ func getUsersInChannel(s *discordgo.Session, channel *discordgo.Channel) ([]stri
 func getUserPresence(s *discordgo.Session, GuildID string, UserID string) *discordgo.Presence {
 	presence, err := s.State.Presence(GuildID, UserID)
 	if err != nil {
-		log.Error(err)
+		// Most often "presence not found" — only worth a debug line.
+		log.Debugw("user presence lookup", "guild_id", GuildID, "user_id", UserID, "error", err)
+		return nil
 	}
 	return presence
 }
 
 func getMainActivity(s *discordgo.Session, channel *discordgo.Channel) (string, error) {
-	//1. Get all users in channel
 	users, err := getUsersInChannel(s, channel)
 	if err != nil {
 		return "", err
 	}
 
-	//2. For each user, get presence
 	var activity []string
-
 	for _, user := range users {
 		presence := getUserPresence(s, channel.GuildID, user)
+		if presence == nil {
+			continue
+		}
 		for _, p := range presence.Activities {
 			if p.Type == discordgo.ActivityTypeGame || p.Type == discordgo.ActivityTypeCompeting {
 				activity = append(activity, p.Name)
@@ -254,29 +300,42 @@ func getMainActivity(s *discordgo.Session, channel *discordgo.Channel) (string, 
 		}
 	}
 
-	//3. Get most common activity
-	duplicates := make(map[string]int)
-	for _, v := range activity {
-		duplicates[v]++
-	}
-	var mostCommon string
-	var mostCommonCount int
-	for k, v := range duplicates {
-		if v > mostCommonCount {
-			mostCommon = k
-			mostCommonCount = v
-		}
-	}
-
-	return mostCommon, nil
+	return mostCommon(activity), nil
 }
 
 func getMainActivityUser(s *discordgo.Session, channel *discordgo.Channel, User *discordgo.User) (string, error) {
 	presence := getUserPresence(s, channel.GuildID, User.ID)
+	if presence == nil {
+		return "", nil
+	}
 	for _, p := range presence.Activities {
 		if p.Type == discordgo.ActivityTypeGame || p.Type == discordgo.ActivityTypeCompeting {
 			return p.Name, nil
 		}
 	}
 	return "", nil
+}
+
+// mostCommon returns the most frequent string in items. Ties are broken
+// by lexicographic order so the result is deterministic regardless of map
+// iteration order.
+func mostCommon(items []string) string {
+	if len(items) == 0 {
+		return ""
+	}
+	counts := make(map[string]int)
+	for _, v := range items {
+		counts[v]++
+	}
+	keys := make([]string, 0, len(counts))
+	for k := range counts {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if counts[keys[i]] != counts[keys[j]] {
+			return counts[keys[i]] > counts[keys[j]]
+		}
+		return keys[i] < keys[j]
+	})
+	return keys[0]
 }

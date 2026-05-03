@@ -114,6 +114,7 @@ func userMoved(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 				log.Errorw("user moved: delete secondary record",
 					"channel_id", i.BeforeUpdate.ChannelID, "error", err)
 			}
+			clearRenameThrottle(i.BeforeUpdate.ChannelID)
 		} else {
 			log.Debugf("Secondary channel %v is not empty, no actions required", i.BeforeUpdate.ChannelID)
 		}
@@ -303,6 +304,67 @@ func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, seco
 		channelName = fmt.Sprintf("#%d %s", (channelrank)+1, channelDefaultName)
 	}
 	return channelName, nil
+}
+
+// PrimarySummary is the read-model returned to /list-primaries.
+type PrimarySummary struct {
+	ChannelID      string
+	DefaultName    string
+	Template       string
+	SecondaryCount int
+}
+
+// ListPrimarySummaries returns every primary channel registered for the
+// given guild, with a count of currently-spawned secondaries for each.
+func ListPrimarySummaries(guildID string) ([]PrimarySummary, error) {
+	var primaries []models.PrimaryChannel
+	if err := database.DB.Where("guild_id = ?", guildID).Find(&primaries).Error; err != nil {
+		return nil, fmt.Errorf("list primary channels: %w", err)
+	}
+	out := make([]PrimarySummary, 0, len(primaries))
+	for _, p := range primaries {
+		var count int64
+		if err := database.DB.Model(&models.SecondaryChannel{}).Where("parent_channel_id = ?", p.ChannelID).Count(&count).Error; err != nil {
+			return nil, fmt.Errorf("count secondaries for %s: %w", p.ChannelID, err)
+		}
+		out = append(out, PrimarySummary{
+			ChannelID:      p.ChannelID,
+			DefaultName:    p.NameDefault,
+			Template:       p.NameTemplate,
+			SecondaryCount: int(count),
+		})
+	}
+	return out, nil
+}
+
+// DeletePrimaryChannel removes a primary channel from Discord and the DB.
+// It refuses to delete primaries that still have spawned secondaries so we
+// don't orphan live voice channels.
+func DeletePrimaryChannel(s *discordgo.Session, guildID, channelID string) error {
+	var primary models.PrimaryChannel
+	q := database.DB.Where("channel_id = ? AND guild_id = ?", channelID, guildID).First(&primary)
+	if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+		return fmt.Errorf("channel %s is not a managed primary in this server", channelID)
+	}
+	if q.Error != nil {
+		return fmt.Errorf("lookup primary channel: %w", q.Error)
+	}
+
+	var secondaryCount int64
+	if err := database.DB.Model(&models.SecondaryChannel{}).Where("parent_channel_id = ?", channelID).Count(&secondaryCount).Error; err != nil {
+		return fmt.Errorf("count secondary channels: %w", err)
+	}
+	if secondaryCount > 0 {
+		return fmt.Errorf("primary still has %d active secondary channel(s); wait for them to empty before deleting", secondaryCount)
+	}
+
+	if _, err := s.ChannelDelete(channelID); err != nil {
+		return fmt.Errorf("delete discord channel: %w", err)
+	}
+	if err := database.DB.Unscoped().Where("channel_id = ?", channelID).Delete(&models.PrimaryChannel{}).Error; err != nil {
+		return fmt.Errorf("delete primary channel record: %w", err)
+	}
+	return nil
 }
 
 func CreatePrimaryChannel(s *discordgo.Session, GuildID string, NameTemplate string, NameDefault string) (*discordgo.Channel, error) {
