@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -47,13 +48,17 @@ func main() {
 
 	dg.UpdateListeningStatus(viper.GetString("bot_status"))
 
-	channels.StartChannelLoops(dg)
-	// Wait here until CTRL-C or other term signal is received.
+	ctx, cancel := context.WithCancel(context.Background())
+	loopsDone := channels.StartChannelLoops(ctx, dg)
+
 	logger.Info("Bot is now running.  Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
+
 	logger.Info("Shutting down")
+	cancel()
+	loopsDone.Wait()
 	commands.RemoveCommands(dg, logger)
 	dg.Close()
 }
