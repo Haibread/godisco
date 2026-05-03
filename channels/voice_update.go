@@ -24,33 +24,32 @@ func SetLogger(l *zap.SugaredLogger) {
 func userJoined(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 	channel, err := s.State.Channel(i.ChannelID)
 	if err != nil {
-		log.Error(err)
+		log.Errorw("user joined: lookup channel from state",
+			"channel_id", i.ChannelID, "user_id", i.UserID, "error", err)
 		return
 	}
-	if isChannelPrimary(s, i.VoiceState.ChannelID) {
-		_, err := createSecondaryChannelandMove(s, i, channel, i.VoiceState.UserID)
-		if err != nil {
-			log.Error(err)
+	if isChannelPrimary(s, i.ChannelID) {
+		if _, err := createSecondaryChannelandMove(s, i, channel, i.UserID); err != nil {
+			log.Errorw("user joined: create secondary and move",
+				"primary_channel_id", channel.ID, "user_id", i.UserID, "error", err)
 		}
 	}
-
 }
 
 func createSecondaryChannelandMove(s *discordgo.Session, i *discordgo.VoiceStateUpdate, parentChannel *discordgo.Channel, UserID string) (*discordgo.Channel, error) {
 
 	channel, err := s.State.Channel(parentChannel.ID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("lookup parent channel %s from state: %w", parentChannel.ID, err)
 	}
 
 	createdChannel, err := createSecondaryChannel(s, i, channel)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create secondary under %s: %w", parentChannel.ID, err)
 	}
 
-	err = s.GuildMemberMove(parentChannel.GuildID, UserID, &createdChannel.ID)
-	if err != nil {
-		return nil, err
+	if err := s.GuildMemberMove(parentChannel.GuildID, UserID, &createdChannel.ID); err != nil {
+		return nil, fmt.Errorf("move user %s to %s: %w", UserID, createdChannel.ID, err)
 	}
 
 	return createdChannel, nil
@@ -60,7 +59,7 @@ func createSecondaryChannel(s *discordgo.Session, i *discordgo.VoiceStateUpdate,
 
 	channelName, err := getChannelName(s, parentChannel, nil, i.UserID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("compute channel name: %w", err)
 	}
 
 	channelToCreate := &discordgo.GuildChannelCreateData{
@@ -72,14 +71,14 @@ func createSecondaryChannel(s *discordgo.Session, i *discordgo.VoiceStateUpdate,
 		PermissionOverwrites: parentChannel.PermissionOverwrites,
 	}
 
-	// Create the new channel
 	chanCreated, err := s.GuildChannelCreateComplex(parentChannel.GuildID, *channelToCreate)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("discord create channel in guild %s: %w", parentChannel.GuildID, err)
 	}
 
-	// Add channel in database.database.DB
-	database.DB.Create(&models.SecondaryChannel{Name: chanCreated.Name, ChannelID: chanCreated.ID, GuildID: chanCreated.GuildID, ParentChannelID: parentChannel.ID, CreatorID: i.UserID})
+	if err := database.DB.Create(&models.SecondaryChannel{Name: chanCreated.Name, ChannelID: chanCreated.ID, GuildID: chanCreated.GuildID, ParentChannelID: parentChannel.ID, CreatorID: i.UserID}).Error; err != nil {
+		return nil, fmt.Errorf("persist secondary channel %s: %w", chanCreated.ID, err)
+	}
 	return chanCreated, nil
 }
 
@@ -91,12 +90,13 @@ func userMoved(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 		log.Debugf("Current channel %v is a primary channel, we need to create a new channel", i.ChannelID)
 		channel, err := s.Channel(i.ChannelID)
 		if err != nil {
-			log.Error(err)
+			log.Errorw("user moved: fetch primary channel",
+				"channel_id", i.ChannelID, "user_id", i.UserID, "error", err)
 			return
 		}
-		_, err = createSecondaryChannelandMove(s, i, channel, i.UserID)
-		if err != nil {
-			log.Error(err)
+		if _, err := createSecondaryChannelandMove(s, i, channel, i.UserID); err != nil {
+			log.Errorw("user moved: create secondary and move",
+				"primary_channel_id", channel.ID, "user_id", i.UserID, "error", err)
 		}
 	}
 
@@ -105,12 +105,15 @@ func userMoved(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 		log.Debugf("Last channel %v was a secondary channel, checking if empty", i.BeforeUpdate.ChannelID)
 		if isChannelEmpty(s, i.GuildID, i.BeforeUpdate.ChannelID) {
 			log.Debugf("Secondary channel %v is empty on guild %v, deleting it", i.BeforeUpdate.ChannelID, i.GuildID)
-			_, err := s.ChannelDelete(i.BeforeUpdate.ChannelID)
-			if err != nil {
-				log.Error(err)
+			if _, err := s.ChannelDelete(i.BeforeUpdate.ChannelID); err != nil {
+				log.Errorw("user moved: delete empty secondary",
+					"channel_id", i.BeforeUpdate.ChannelID, "guild_id", i.GuildID, "error", err)
 			}
 			log.Debugf("Removing secondary channel %v record from database.DB", i.BeforeUpdate.ChannelID)
-			database.DB.Unscoped().Where("channel_id = ?", i.BeforeUpdate.ChannelID).Delete(&models.SecondaryChannel{})
+			if err := database.DB.Unscoped().Where("channel_id = ?", i.BeforeUpdate.ChannelID).Delete(&models.SecondaryChannel{}).Error; err != nil {
+				log.Errorw("user moved: delete secondary record",
+					"channel_id", i.BeforeUpdate.ChannelID, "error", err)
+			}
 		} else {
 			log.Debugf("Secondary channel %v is not empty, no actions required", i.BeforeUpdate.ChannelID)
 		}
@@ -120,23 +123,19 @@ func userMoved(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 }
 
 func isChannelEmpty(s *discordgo.Session, GuildID string, ChannelID string) bool {
-	count := 0
 	guild, err := s.State.Guild(GuildID)
 	if err != nil {
-		log.Error(err)
-	}
-
-	for _, channel := range guild.VoiceStates {
-		if channel.ChannelID == ChannelID {
-			count += 1
-		}
-	}
-
-	if count == 0 {
-		return true
-	} else {
+		log.Errorw("isChannelEmpty: fetch guild",
+			"guild_id", GuildID, "channel_id", ChannelID, "error", err)
 		return false
 	}
+
+	for _, vs := range guild.VoiceStates {
+		if vs.ChannelID == ChannelID {
+			return false
+		}
+	}
+	return true
 }
 
 func isChannelPrimary(s *discordgo.Session, ChannelID string) bool {
@@ -171,7 +170,7 @@ func getPrimaryChannelTemplate(s *discordgo.Session, ChannelID string) (string, 
 		if errors.Is(managed_channel.Error, gorm.ErrRecordNotFound) {
 			return "", nil
 		} else {
-			return "", fmt.Errorf("error while getting channel template: %v", managed_channel.Error)
+			return "", fmt.Errorf("error while getting channel template: %w", managed_channel.Error)
 		}
 	}
 
@@ -190,7 +189,7 @@ func getPrimaryChannelDefaultName(s *discordgo.Session, ChannelID string) (strin
 		if errors.Is(query.Error, gorm.ErrRecordNotFound) {
 			return "", nil
 		} else {
-			return "", fmt.Errorf("error while getting channel default name: %v", query.Error)
+			return "", fmt.Errorf("error while getting channel default name: %w", query.Error)
 		}
 	}
 
@@ -209,7 +208,7 @@ func getSecondaryChannelRank(s *discordgo.Session, ParentChannelID string, Chann
 		if errors.Is(secondary_channels.Error, gorm.ErrRecordNotFound) {
 			return 1, nil
 		} else {
-			return 0, fmt.Errorf("error while getting secondary channel count : %v", secondary_channels.Error)
+			return 0, fmt.Errorf("error while getting secondary channel count : %w", secondary_channels.Error)
 		}
 	}
 
@@ -218,7 +217,7 @@ func getSecondaryChannelRank(s *discordgo.Session, ParentChannelID string, Chann
 	for _, channel := range channels {
 		int_channel_id, err := strconv.Atoi(channel.ChannelID)
 		if err != nil {
-			return 0, fmt.Errorf("error while converting channel ID to int: %v", err)
+			return 0, fmt.Errorf("error while converting channel ID to int: %w", err)
 		}
 		secondary_channel_ids = append(secondary_channel_ids, int_channel_id)
 	}
@@ -228,34 +227,23 @@ func getSecondaryChannelRank(s *discordgo.Session, ParentChannelID string, Chann
 
 	// Count and compare
 	count := 0
-	found := false
 	for _, channel := range secondary_channel_ids {
-		var int_channel_id int
-		var err error
+		int_channel_id := 0
 		if ChannelID != "" {
+			var err error
 			int_channel_id, err = strconv.Atoi(ChannelID)
 			if err != nil {
-				return 0, fmt.Errorf("error while converting channel ID to int: %v", err)
+				return 0, fmt.Errorf("error while converting channel ID to int: %w", err)
 			}
-		} else {
-			int_channel_id = 0
 		}
 
-		// If found current channel_id, return value+1
 		if channel == int_channel_id {
-			found = true
 			return count + 1, nil
-		} else {
-			count += 1
 		}
-
+		count += 1
 	}
 
-	if !found {
-		return count + 1, nil
-	}
-
-	return count, nil
+	return count + 1, nil
 }
 
 func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, secondaryChannel *discordgo.Channel, CreatorID string) (string, error) {
@@ -295,7 +283,7 @@ func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, seco
 			Rank:             channelrank,
 		}
 	} else {
-		return "nil", fmt.Errorf("error while getting channel type: %v", err)
+		return "nil", fmt.Errorf("error while getting channel type: %w", err)
 	}
 
 	var channelName string

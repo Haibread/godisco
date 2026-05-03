@@ -25,7 +25,10 @@ jobs:
       run: go vet ./...
 
     - name: Test
-      run: go test -race -v ./...
+      run: go test -race -coverprofile=coverage.out -covermode=atomic -v ./...
+
+    - name: Coverage summary
+      run: go tool cover -func=coverage.out
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v4
@@ -44,4 +47,3 @@ jobs:
         push: true
         cache-from: type=gha
         cache-to: type=gha,mode=max
-    

@@ -46,8 +46,13 @@ var (
 	}
 )
 
-func RegisterCommands(dg *discordgo.Session, log *zap.SugaredLogger) error {
-	if err := addCommands(dg, log); err != nil {
+// log is the package-level logger used by command handlers. It is set by
+// RegisterCommands and must not be used before then.
+var log *zap.SugaredLogger
+
+func RegisterCommands(dg *discordgo.Session, l *zap.SugaredLogger) error {
+	log = l
+	if err := addCommands(dg, l); err != nil {
 		return err
 	}
 	addHandlers(dg)

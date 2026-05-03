@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -18,7 +19,13 @@ import (
 
 func main() {
 	logger, syncLogger := logging.InitLogger()
-	defer syncLogger()
+	defer func() {
+		// zap's Sync can return ENOTTY/EBADF on stderr in some environments;
+		// nothing actionable beyond logging it.
+		if err := syncLogger(); err != nil {
+			logger.Debugw("logger sync", "error", err)
+		}
+	}()
 
 	channels.SetLogger(logger)
 	database.SetLogger(logger)
@@ -45,17 +52,25 @@ func main() {
 		logger.Fatalf("Could not open Websocket connection %s", err)
 	}
 
-	dg.UpdateListeningStatus(viper.GetString("bot_status"))
+	if err := dg.UpdateListeningStatus(viper.GetString("bot_status")); err != nil {
+		logger.Warnw("update listening status", "error", err)
+	}
 
-	channels.StartChannelLoops(dg)
-	// Wait here until CTRL-C or other term signal is received.
+	ctx, cancel := context.WithCancel(context.Background())
+	loopsDone := channels.StartChannelLoops(ctx, dg)
+
 	logger.Info("Bot is now running.  Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
+
 	logger.Info("Shutting down")
+	cancel()
+	loopsDone.Wait()
 	commands.RemoveCommands(dg, logger)
-	dg.Close()
+	if err := dg.Close(); err != nil {
+		logger.Warnw("close discord session", "error", err)
+	}
 }
 
 func initconfig() {

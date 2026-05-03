@@ -40,12 +40,12 @@ func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 	vars := neededVariables(c.Template)
 	for _, v := range vars {
 		v = strings.ToLower(v)
-		switch {
-		case v == "icao":
+		switch v {
+		case "icao":
 			c.templateVars.Icao = getICAO(c.Rank)
-		case v == "number":
+		case "number":
 			c.templateVars.Number = fmt.Sprintf("%d", c.Rank)
-		case v == "gamename":
+		case "gamename":
 			// If primary channel
 			if c.PrimaryChannel != nil {
 				user, err := c.Session.User(c.Creator)
@@ -79,7 +79,7 @@ func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 					if errors.Is(query.Error, gorm.ErrRecordNotFound) {
 						return "", nil
 					} else {
-						return "", fmt.Errorf("error while getting channel default name: %v", query.Error)
+						return "", fmt.Errorf("error while getting channel default name: %w", query.Error)
 					}
 				}
 				c.templateVars.GameName, err = getPrimaryChannelDefaultName(c.Session, ParentChanID.ParentChannelID)
@@ -96,9 +96,9 @@ func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 				}
 			}
 
-		case v == "partysize":
+		case "partysize":
 			c.templateVars.PartySize = "N/A"
-		case v == "creatorname":
+		case "creatorname":
 			User, err := c.Session.User(c.Creator)
 			if err != nil {
 				log.Error(err)
@@ -159,47 +159,43 @@ func getICAO(position int) string {
 }
 
 func renameAllSecondaryChannels(s *discordgo.Session) {
-	//1. Get all channels from db
 	var channels []models.SecondaryChannel
-	query := database.DB.Find(&channels)
-	if query.Error != nil {
-		log.Errorf("Failed to get all secondary channels %v", query.Error)
+	if err := database.DB.Find(&channels).Error; err != nil {
+		log.Errorw("rename loop: list secondary channels", "error", err)
+		return
 	}
-	//2. For each channel, get name from template
-	for _, c := range channels {
 
+	for _, c := range channels {
 		parentChannel, err := s.State.Channel(c.ParentChannelID)
 		if err != nil {
-			log.Error(err)
+			log.Errorw("rename loop: fetch parent channel",
+				"parent_channel_id", c.ParentChannelID, "channel_id", c.ChannelID, "error", err)
+			continue
 		}
 
 		secondaryChannel, err := s.State.Channel(c.ChannelID)
 		if err != nil {
-			log.Error(err)
+			log.Errorw("rename loop: fetch secondary channel",
+				"channel_id", c.ChannelID, "error", err)
+			continue
 		}
 
 		channelName, err := getChannelName(s, parentChannel, secondaryChannel, c.CreatorID)
 		if err != nil {
-			log.Error(err)
-		}
-		//3. If channel name is different from current name, rename channel
-		currentChannel, err := s.State.Channel(c.ChannelID)
-		currentChannelName := currentChannel.Name
-		if err != nil {
-			log.Error(err)
+			log.Errorw("rename loop: compute channel name",
+				"channel_id", c.ChannelID, "error", err)
+			continue
 		}
 
-		if channelName != currentChannelName {
-			_, err := s.ChannelEdit(c.ChannelID, &discordgo.ChannelEdit{
-				Name: channelName,
-			})
-			if err != nil {
-				log.Error(err)
-			}
+		if channelName == secondaryChannel.Name {
+			continue
 		}
-		//4. If channel name is the same, do nothing
+
+		if _, err := s.ChannelEdit(c.ChannelID, &discordgo.ChannelEdit{Name: channelName}); err != nil {
+			log.Errorw("rename loop: rename channel",
+				"channel_id", c.ChannelID, "new_name", channelName, "error", err)
+		}
 	}
-
 }
 
 func getUsersInChannel(s *discordgo.Session, channel *discordgo.Channel) ([]string, error) {
