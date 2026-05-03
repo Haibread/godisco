@@ -1,4 +1,4 @@
-FROM golang:1.24-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 RUN apk upgrade --update-cache --available
 RUN apk add --no-cache \
@@ -16,7 +16,7 @@ COPY . .
 
 RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o godisco /app/app/godisco
 
-FROM alpine:3.20
+FROM alpine:3.23
 
 RUN apk --no-cache add ca-certificates
 
