@@ -36,6 +36,17 @@ type templateVars struct {
 
 var icao = [26]string{"Alfa", "Beta", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Juliett", "Kilo", "Lima", "Mike", "November", "Oscar", "Papa", "Quebec", "Romeo", "Sierra", "Tango", "Uniform", "Victor", "Whiskey", "X-ray", "Yankee", "Zulu"}
 
+// TemplateHelp documents the fields available to channel-name templates. It
+// is rendered inside a Discord embed by the /help command, so it uses a
+// markdown code block for monospace alignment.
+const TemplateHelp = "```\n" +
+	"{{.Icao}}        NATO phonetic word for the channel rank\n" +
+	"{{.Number}}      channel rank among siblings of the same primary\n" +
+	"{{.GameName}}    most common active game in the channel\n" +
+	"{{.PartySize}}   placeholder, currently \"N/A\"\n" +
+	"{{.CreatorName}} username of the channel creator\n" +
+	"```"
+
 func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 	vars := neededVariables(c.Template)
 	for _, v := range vars {
