@@ -19,7 +19,13 @@ import (
 
 func main() {
 	logger, syncLogger := logging.InitLogger()
-	defer syncLogger()
+	defer func() {
+		// zap's Sync can return ENOTTY/EBADF on stderr in some environments;
+		// nothing actionable beyond logging it.
+		if err := syncLogger(); err != nil {
+			logger.Debugw("logger sync", "error", err)
+		}
+	}()
 
 	channels.SetLogger(logger)
 	database.SetLogger(logger)
@@ -46,7 +52,9 @@ func main() {
 		logger.Fatalf("Could not open Websocket connection %s", err)
 	}
 
-	dg.UpdateListeningStatus(viper.GetString("bot_status"))
+	if err := dg.UpdateListeningStatus(viper.GetString("bot_status")); err != nil {
+		logger.Warnw("update listening status", "error", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	loopsDone := channels.StartChannelLoops(ctx, dg)
@@ -60,7 +68,9 @@ func main() {
 	cancel()
 	loopsDone.Wait()
 	commands.RemoveCommands(dg, logger)
-	dg.Close()
+	if err := dg.Close(); err != nil {
+		logger.Warnw("close discord session", "error", err)
+	}
 }
 
 func initconfig() {

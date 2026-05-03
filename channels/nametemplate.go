@@ -79,7 +79,7 @@ func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 					if errors.Is(query.Error, gorm.ErrRecordNotFound) {
 						return "", nil
 					} else {
-						return "", fmt.Errorf("error while getting channel default name: %v", query.Error)
+						return "", fmt.Errorf("error while getting channel default name: %w", query.Error)
 					}
 				}
 				c.templateVars.GameName, err = getPrimaryChannelDefaultName(c.Session, ParentChanID.ParentChannelID)

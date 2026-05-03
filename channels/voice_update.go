@@ -170,7 +170,7 @@ func getPrimaryChannelTemplate(s *discordgo.Session, ChannelID string) (string, 
 		if errors.Is(managed_channel.Error, gorm.ErrRecordNotFound) {
 			return "", nil
 		} else {
-			return "", fmt.Errorf("error while getting channel template: %v", managed_channel.Error)
+			return "", fmt.Errorf("error while getting channel template: %w", managed_channel.Error)
 		}
 	}
 
@@ -189,7 +189,7 @@ func getPrimaryChannelDefaultName(s *discordgo.Session, ChannelID string) (strin
 		if errors.Is(query.Error, gorm.ErrRecordNotFound) {
 			return "", nil
 		} else {
-			return "", fmt.Errorf("error while getting channel default name: %v", query.Error)
+			return "", fmt.Errorf("error while getting channel default name: %w", query.Error)
 		}
 	}
 
@@ -208,7 +208,7 @@ func getSecondaryChannelRank(s *discordgo.Session, ParentChannelID string, Chann
 		if errors.Is(secondary_channels.Error, gorm.ErrRecordNotFound) {
 			return 1, nil
 		} else {
-			return 0, fmt.Errorf("error while getting secondary channel count : %v", secondary_channels.Error)
+			return 0, fmt.Errorf("error while getting secondary channel count : %w", secondary_channels.Error)
 		}
 	}
 
@@ -217,7 +217,7 @@ func getSecondaryChannelRank(s *discordgo.Session, ParentChannelID string, Chann
 	for _, channel := range channels {
 		int_channel_id, err := strconv.Atoi(channel.ChannelID)
 		if err != nil {
-			return 0, fmt.Errorf("error while converting channel ID to int: %v", err)
+			return 0, fmt.Errorf("error while converting channel ID to int: %w", err)
 		}
 		secondary_channel_ids = append(secondary_channel_ids, int_channel_id)
 	}
@@ -234,7 +234,7 @@ func getSecondaryChannelRank(s *discordgo.Session, ParentChannelID string, Chann
 		if ChannelID != "" {
 			int_channel_id, err = strconv.Atoi(ChannelID)
 			if err != nil {
-				return 0, fmt.Errorf("error while converting channel ID to int: %v", err)
+				return 0, fmt.Errorf("error while converting channel ID to int: %w", err)
 			}
 		} else {
 			int_channel_id = 0
@@ -294,7 +294,7 @@ func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, seco
 			Rank:             channelrank,
 		}
 	} else {
-		return "nil", fmt.Errorf("error while getting channel type: %v", err)
+		return "nil", fmt.Errorf("error while getting channel type: %w", err)
 	}
 
 	var channelName string
