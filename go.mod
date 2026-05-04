@@ -6,7 +6,7 @@ toolchain go1.26.2
 
 require (
 	github.com/bwmarrin/discordgo v0.29.0
-	github.com/fsnotify/fsnotify v1.10.0
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.28.0
 	gorm.io/driver/sqlite v1.6.0
