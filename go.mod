@@ -2,7 +2,7 @@ module github.com/Haibread/godisco
 
 go 1.24.0
 
-toolchain go1.26.2
+toolchain go1.26.3
 
 require (
 	github.com/bwmarrin/discordgo v0.29.0
