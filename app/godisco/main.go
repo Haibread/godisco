@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/Haibread/godisco/channels"
@@ -45,6 +46,7 @@ func main() {
 		logger.Fatalf("Failed to register commands: %v", err)
 	}
 	dg.AddHandler(channels.VCUpdate)
+	dg.AddHandler(channels.PresenceUpdate)
 
 	logger.Info("Opening Websocket connection")
 	err = dg.Open()
@@ -52,8 +54,15 @@ func main() {
 		logger.Fatalf("Could not open Websocket connection %s", err)
 	}
 
-	if err := dg.UpdateListeningStatus(viper.GetString("bot_status")); err != nil {
-		logger.Warnw("update listening status", "error", err)
+	if status := viper.GetString("bot_status"); status != "" {
+		if err := dg.UpdateStatusComplex(discordgo.UpdateStatusData{
+			Activities: []*discordgo.Activity{{
+				Name: status,
+				Type: parseActivityType(viper.GetString("bot_activity_type")),
+			}},
+		}); err != nil {
+			logger.Warnw("update bot status", "error", err)
+		}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -76,6 +85,7 @@ func main() {
 func initconfig() {
 	viper.SetDefault("token", "")
 	viper.SetDefault("bot_status", "")
+	viper.SetDefault("bot_activity_type", "Listening")
 	viper.SetConfigName("config")
 	viper.AddConfigPath("config")
 	viper.SetConfigType("yaml")
@@ -87,4 +97,22 @@ func initconfig() {
 		fmt.Println("Config file changed:", e.Name)
 	})
 	viper.WatchConfig()
+}
+
+// parseActivityType maps the bot_activity_type config string to a discordgo
+// ActivityType. Unknown values fall back to Listening to preserve the
+// previous default.
+func parseActivityType(s string) discordgo.ActivityType {
+	switch strings.ToLower(s) {
+	case "playing":
+		return discordgo.ActivityTypeGame
+	case "watching":
+		return discordgo.ActivityTypeWatching
+	case "competing":
+		return discordgo.ActivityTypeCompeting
+	case "streaming":
+		return discordgo.ActivityTypeStreaming
+	default:
+		return discordgo.ActivityTypeListening
+	}
 }

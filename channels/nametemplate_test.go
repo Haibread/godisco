@@ -45,6 +45,28 @@ func TestGetICAO(t *testing.T) {
 	}
 }
 
+func TestMostCommon(t *testing.T) {
+	tests := []struct {
+		name  string
+		items []string
+		want  string
+	}{
+		{"empty", nil, ""},
+		{"single", []string{"Tetris"}, "Tetris"},
+		{"clear winner", []string{"A", "B", "A"}, "A"},
+		// Tie on count: lex-smallest wins, regardless of input order.
+		{"tie picks lex smallest", []string{"Zork", "Atari", "Zork", "Atari"}, "Atari"},
+		{"tie reversed input", []string{"Atari", "Zork", "Atari", "Zork"}, "Atari"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := mostCommon(tt.items); got != tt.want {
+				t.Errorf("mostCommon(%v) = %q, want %q", tt.items, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestTestTemplate(t *testing.T) {
 	tests := []struct {
 		name     string

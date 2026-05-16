@@ -51,12 +51,14 @@ changes.
 # config/config.yaml
 token: "YOUR_DISCORD_BOT_TOKEN"
 bot_status: ""
+bot_activity_type: "Listening"
 ```
 
-| Key          | Default | Description                              |
-| ------------ | ------- | ---------------------------------------- |
-| `token`      | `""`    | Discord bot token (required)             |
-| `bot_status` | `""`    | "Listening to ..." status string         |
+| Key                 | Default       | Description                                                                  |
+| ------------------- | ------------- | ---------------------------------------------------------------------------- |
+| `token`             | `""`          | Discord bot token (required)                                                 |
+| `bot_status`        | `""`          | Status string shown in the bot's profile. Empty disables status entirely.    |
+| `bot_activity_type` | `"Listening"` | Activity verb: `Playing`, `Listening`, `Watching`, `Competing`, `Streaming`. |
 
 The SQLite database is created automatically at `config/channels.db` on first
 run.
@@ -102,11 +104,15 @@ echo 'token: "YOUR_TOKEN"' > config/config.yaml
 
 ## Slash commands
 
-| Command              | Permissions       | Description                                                |
-| -------------------- | ----------------- | ---------------------------------------------------------- |
-| `/ping`              | anyone            | Reply with command delay and gateway heartbeat latency.    |
-| `/help`              | anyone            | Placeholder.                                               |
-| `/create-primary`    | `Manage Channels` | Create a new primary voice channel (see below).            |
+| Command              | Permissions       | Description                                                       |
+| -------------------- | ----------------- | ----------------------------------------------------------------- |
+| `/ping`              | anyone            | Reply with command delay and gateway heartbeat latency.           |
+| `/help [topic]`      | anyone            | Show commands and template-field reference (filterable by topic). |
+| `/create-primary`    | `Manage Channels` | Create a new primary voice channel (see below).                   |
+| `/list-primaries`    | anyone            | List managed primary channels in the current server.              |
+| `/delete-primary`    | `Manage Channels` | Remove a managed primary channel and its DB record.               |
+
+All replies are ephemeral — only the user who ran the command sees them.
 
 ### `/create-primary`
 
@@ -147,6 +153,39 @@ falls back to `#<rank+1> <default-name>`.
 
 The rename loop re-evaluates templates every 5 minutes per secondary channel
 to track game changes.
+
+## Troubleshooting
+
+**`{{.GameName}}` always renders as the default name / "Game Unknown".**
+Enable the privileged *Server Members* and *Presence* intents in the Discord
+developer portal for the bot's application — without `GUILD_PRESENCES` the
+gateway never sends activity data, so godisco can't see what anyone is
+playing.
+
+**Channel name doesn't update when someone changes game.**
+Discord rate-limits channel renames to 2 per 10 minutes per channel. godisco
+renames a channel at most once every 5 minutes — both the periodic sweep and
+the presence-triggered rename go through the same throttle. If you just
+changed game and the name didn't update, wait up to 5 minutes.
+
+**`/create-primary` fails with "Failed to create channel: HTTP 403 Forbidden".**
+The bot's role is missing `Manage Channels` in the guild (or in the category
+where the channel would be created). Check the role's permissions and any
+category-level overrides.
+
+**Bot creates the secondary channel but doesn't move the user.**
+The bot also needs `Move Members` to drag the user into the freshly-created
+secondary. `Manage Channels` alone isn't enough.
+
+**`/delete-primary` reports "primary still has N active secondary channel(s)".**
+godisco refuses to delete a primary while there are live secondaries spawned
+from it (deleting it would orphan them). Wait for the secondaries to empty
+out — they auto-delete — then try again.
+
+**`/create-primary` reports "Invalid `template`: ..."**.
+The error includes the underlying Go `text/template` parse or execute
+message. The most common case is referencing a field that doesn't exist
+(e.g. `{{.Foo}}`); use `/help template` for the full field list.
 
 ## Development
 
