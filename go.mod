@@ -2,7 +2,7 @@ module github.com/Haibread/godisco
 
 go 1.24.0
 
-toolchain go1.26.2
+toolchain go1.27.1
 
 require (
 	github.com/bwmarrin/discordgo v0.29.0
@@ -10,7 +10,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.28.0
 	gorm.io/driver/sqlite v1.6.0
-	gorm.io/gorm v1.31.1
+	gorm.io/gorm v1.31.2
 )
 
 require (
