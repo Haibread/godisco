@@ -45,6 +45,8 @@ func main() {
 		logger.Fatalf("Failed to register commands: %v", err)
 	}
 	dg.AddHandler(channels.VCUpdate)
+	dg.AddHandler(channels.GuildCreate)
+	dg.AddHandler(channels.ChannelDelete)
 
 	logger.Info("Opening Websocket connection")
 	err = dg.Open()

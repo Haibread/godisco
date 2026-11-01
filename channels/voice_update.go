@@ -110,7 +110,7 @@ func userMoved(s *discordgo.Session, i *discordgo.VoiceStateUpdate) {
 					"channel_id", i.BeforeUpdate.ChannelID, "guild_id", i.GuildID, "error", err)
 			}
 			log.Debugf("Removing secondary channel %v record from database.DB", i.BeforeUpdate.ChannelID)
-			if err := database.DB.Unscoped().Where("channel_id = ?", i.BeforeUpdate.ChannelID).Delete(&models.SecondaryChannel{}).Error; err != nil {
+			if err := deleteSecondaryRecord(i.BeforeUpdate.ChannelID); err != nil {
 				log.Errorw("user moved: delete secondary record",
 					"channel_id", i.BeforeUpdate.ChannelID, "error", err)
 			}
@@ -300,7 +300,7 @@ func getChannelName(s *discordgo.Session, parentChannel *discordgo.Channel, seco
 		if err != nil {
 			return "nil", err
 		}
-		channelName = fmt.Sprintf("#%d %s", (channelrank)+1, channelDefaultName)
+		channelName = fmt.Sprintf("#%d %s", channelrank, channelDefaultName)
 	}
 	return channelName, nil
 }

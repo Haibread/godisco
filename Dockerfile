@@ -3,7 +3,7 @@ FROM golang:1.26-alpine AS builder
 RUN apk upgrade --update-cache --available
 RUN apk add --no-cache \
         gcc \
-        musl-dev 
+        musl-dev
 
 RUN mkdir /app
 

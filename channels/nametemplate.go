@@ -42,7 +42,7 @@ func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 		v = strings.ToLower(v)
 		switch v {
 		case "icao":
-			c.templateVars.Icao = getICAO(c.Rank)
+			c.templateVars.Icao = getICAO(c.Rank - 1)
 		case "number":
 			c.templateVars.Number = fmt.Sprintf("%d", c.Rank)
 		case "gamename":
@@ -52,13 +52,15 @@ func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 				if err != nil {
 					log.Error(err)
 					c.templateVars.GameName = "Game Unknown"
+				} else {
+					game, err := getMainActivityUser(c.Session, c.PrimaryChannel, user)
+					if err != nil {
+						log.Error(err)
+						c.templateVars.GameName = "Game Unknown"
+					} else {
+						c.templateVars.GameName = game
+					}
 				}
-				game, err := getMainActivityUser(c.Session, c.PrimaryChannel, user)
-				if err != nil {
-					log.Error(err)
-					c.templateVars.GameName = "Game Unknown"
-				}
-				c.templateVars.GameName = game
 			} else if c.SecondaryChannel != nil {
 				game, err := getMainActivity(c.Session, c.SecondaryChannel)
 				if err != nil {
@@ -102,8 +104,10 @@ func (c ChanneltoRename) getNamefromTemplate() (string, error) {
 			User, err := c.Session.User(c.Creator)
 			if err != nil {
 				log.Error(err)
+				c.templateVars.CreatorName = "Unknown"
+			} else {
+				c.templateVars.CreatorName = User.Username
 			}
-			c.templateVars.CreatorName = User.Username
 		}
 	}
 	templateName, err := template.New("channel_name").Parse(c.Template)
@@ -155,7 +159,7 @@ func TestTemplate(s *discordgo.Session, tpl string) error {
 }
 
 func getICAO(position int) string {
-	return icao[position]
+	return icao[position%len(icao)]
 }
 
 func renameAllSecondaryChannels(s *discordgo.Session) {
@@ -236,6 +240,9 @@ func getMainActivity(s *discordgo.Session, channel *discordgo.Channel) (string, 
 
 	for _, user := range users {
 		presence := getUserPresence(s, channel.GuildID, user)
+		if presence == nil {
+			continue
+		}
 		for _, p := range presence.Activities {
 			if p.Type == discordgo.ActivityTypeGame || p.Type == discordgo.ActivityTypeCompeting {
 				activity = append(activity, p.Name)
@@ -262,6 +269,9 @@ func getMainActivity(s *discordgo.Session, channel *discordgo.Channel) (string, 
 
 func getMainActivityUser(s *discordgo.Session, channel *discordgo.Channel, User *discordgo.User) (string, error) {
 	presence := getUserPresence(s, channel.GuildID, User.ID)
+	if presence == nil {
+		return "", nil
+	}
 	for _, p := range presence.Activities {
 		if p.Type == discordgo.ActivityTypeGame || p.Type == discordgo.ActivityTypeCompeting {
 			return p.Name, nil
