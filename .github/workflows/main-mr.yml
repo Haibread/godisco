@@ -1,8 +1,9 @@
-name : Main
+name: Main
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+    - main
 
 jobs:
   build:
@@ -52,3 +53,21 @@ jobs:
       uses: golangci/golangci-lint-action@v9
       with:
         version: latest
+
+  pre-commit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - name: check out the repository
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
+
+    - name: set up Go
+      uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+      with:
+        go-version: '1.26'
+        cache: true
+        cache-dependency-path: go.sum
+
+    - name: run pre-commit
+      run: pipx run pre-commit==4.6.0 run --all-files

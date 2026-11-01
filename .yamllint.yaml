@@ -1,0 +1,16 @@
+extends: default
+
+rules:
+  document-start:
+    present: false
+  braces:
+    forbid: non-empty
+  brackets:
+    forbid: non-empty
+  # A digest-pinned reference alone is longer than any sensible limit.
+  line-length: disable
+  # GitHub Actions requires the bare `on:` key, which YAML 1.1 reads as a boolean.
+  truthy:
+    check-keys: false
+  indentation:
+    indent-sequences: consistent
