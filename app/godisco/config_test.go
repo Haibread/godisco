@@ -13,6 +13,7 @@ func newViper() *viper.Viper {
 	v := viper.New()
 	v.SetDefault("token", "")
 	v.SetDefault("bot_status", "")
+	v.SetDefault("bot_activity_type", "Listening")
 	v.SetConfigName("config")
 	v.AddConfigPath("config")
 	v.SetConfigType("yaml")
@@ -145,6 +146,38 @@ func TestLoadConfig(t *testing.T) {
 			}
 			if got := v.GetString(keyDBPath); got != tt.wantDB {
 				t.Errorf("db_path = %q, want %q", got, tt.wantDB)
+			}
+		})
+	}
+}
+
+func TestLoadConfigActivityType(t *testing.T) {
+	tests := []struct {
+		name string
+		file string
+		env  string
+		want string
+	}{
+		{name: "defaults to Listening", file: "token: file", want: "Listening"},
+		{name: "the config file overrides the default", file: "token: file\nbot_activity_type: Watching", want: "Watching"},
+		{name: "BOT_ACTIVITY_TYPE beats the config file", file: "token: file\nbot_activity_type: Watching", env: "Playing", want: "Playing"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Chdir(t.TempDir())
+			for _, env := range envNames {
+				t.Setenv(env, "")
+			}
+			t.Setenv("BOT_ACTIVITY_TYPE", tt.env)
+			writeFile(t, "config/config.yaml", tt.file)
+
+			v := newViper()
+			if err := loadConfig(v, nil); err != nil {
+				t.Fatal(err)
+			}
+			if got := v.GetString("bot_activity_type"); got != tt.want {
+				t.Errorf("bot_activity_type = %q, want %q", got, tt.want)
 			}
 		})
 	}

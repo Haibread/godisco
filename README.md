@@ -51,13 +51,13 @@ bot_activity_type: "Listening"
 Each setting comes from, in order of precedence, a command-line flag, an
 environment variable, the config file, then its default.
 
-| Key                 | Variable        | Flag            | Default              | Description                                                                 |
-| ------------------- | --------------- | --------------- | -------------------- | --------------------------------------------------------------------------- |
-| —                   | `CONFIG_FILE`   | `--config-file` | `config/config.yaml` | Config file to read                                                         |
-| `token`             | `DISCORD_TOKEN` | —               | `""`                 | Discord bot token (required)                                                |
-| `bot_status`        | `BOT_STATUS`    | —               | `""`                 | Status string shown in the bot's profile. Empty disables status entirely.   |
-| `bot_activity_type` | —               | —               | `Listening`          | Activity verb: `Playing`, `Listening`, `Watching`, `Competing`, `Streaming` |
-| `db_path`           | `DB_PATH`       | `--db-path`     | `config/channels.db` | SQLite database, created on first run                                       |
+| Key                 | Variable            | Flag            | Default              | Description                                                                 |
+| ------------------- | ------------------- | --------------- | -------------------- | --------------------------------------------------------------------------- |
+| —                   | `CONFIG_FILE`       | `--config-file` | `config/config.yaml` | Config file to read                                                         |
+| `token`             | `DISCORD_TOKEN`     | —               | `""`                 | Discord bot token (required)                                                |
+| `bot_status`        | `BOT_STATUS`        | —               | `""`                 | Status string shown in the bot's profile. Empty disables status entirely.   |
+| `bot_activity_type` | `BOT_ACTIVITY_TYPE` | —               | `Listening`          | Activity verb: `Playing`, `Listening`, `Watching`, `Competing`, `Streaming` |
+| `db_path`           | `DB_PATH`           | `--db-path`     | `config/channels.db` | SQLite database, created on first run                                       |
 
 Relative paths resolve against the working directory, `/app` in the image,
 where a moved database must sit in a mounted directory owned by UID 65532.
