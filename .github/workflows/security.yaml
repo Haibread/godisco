@@ -22,7 +22,7 @@ env:
 jobs:
   dependencies:
     name: scan the dependencies
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       security-events: write
@@ -69,7 +69,7 @@ jobs:
   released-image:
     name: scan the released image
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       security-events: write
@@ -117,7 +117,7 @@ jobs:
 
   codeql:
     name: CodeQL
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       security-events: write
