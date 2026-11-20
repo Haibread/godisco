@@ -31,7 +31,7 @@ it.
 
 - A Discord bot token, with the `GUILD_PRESENCES` privileged intent enabled in
   the developer portal
-- Docker, or Go 1.24+ and a C compiler to build from source
+- Docker, or Go 1.26+ to build from source
 
 ### Configuration
 

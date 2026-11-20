@@ -6,8 +6,8 @@ import (
 	"os"
 
 	"github.com/Haibread/godisco/models"
+	"github.com/ncruces/go-sqlite3/gormlite"
 	"go.uber.org/zap"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -23,7 +23,7 @@ func SetLogger(l *zap.SugaredLogger) {
 func InitDB() {
 	var err error
 	createDBifNotExists()
-	DB, err = gorm.Open(sqlite.Open("./config/channels.db"), &gorm.Config{
+	DB, err = gorm.Open(gormlite.Open("./config/channels.db"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {

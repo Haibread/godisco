@@ -6,8 +6,7 @@ below are green.
 
 ## Development setup
 
-- [Go](https://go.dev/doc/install) 1.24 or newer
-- A C compiler for cgo, which the SQLite driver needs: `gcc` or `clang`
+- [Go](https://go.dev/doc/install) 1.26 or newer
 - [pre-commit](https://pre-commit.com/#install)
 - [golangci-lint](https://golangci-lint.run/docs/welcome/install/), to reproduce
   the lint job locally
