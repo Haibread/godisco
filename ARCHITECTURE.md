@@ -71,11 +71,12 @@ from the state is logged and skipped, so one bad record cannot stop the sweep.
 
 ## State and persistence
 
-`config/channels.db` holds two tables: `primary_channels` (template and default
-name of each primary) and `secondary_channels` (one row per live secondary, with
-its parent and creator). The Discord session state, kept in memory by discordgo,
-is the source of truth for what exists and who is connected. The database only
-says which channels the bot manages.
+The SQLite database, `config/channels.db` unless `db_path` moves it, holds two
+tables: `primary_channels` (template and default name of each primary) and
+`secondary_channels` (one row per live secondary, with its parent and creator).
+The Discord session state, kept in memory by discordgo, is the source of truth
+for what exists and who is connected. The database only says which channels the
+bot manages.
 
 ## Design decisions
 
@@ -88,6 +89,14 @@ calls while the handlers already keep the records right in a running session.
 so the binary is static, cross-compiles without a C toolchain and runs on an
 image with no libc. It reads and writes the same database file as the cgo
 drivers.
+
+**Configuration paths default to `config/`.** The config file and the
+database are found under the relative `config/` directory unless a flag, an
+environment variable or the config file names another path, so a checkout and
+the image's `/app/config` volume work with no setting at all. The database path
+does not follow the config file: a config file mounted read-only, such as a
+secret, leaves the database in its writable volume. The token has no flag,
+which would show it in the process list.
 
 **Ranks are derived from the records.** A channel's number is its position among
 the sorted IDs of its siblings, and a new channel ranks after all of them. No

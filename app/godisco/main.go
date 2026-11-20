@@ -43,7 +43,8 @@ func main() {
 	database.SetLogger(logger)
 
 	initconfig()
-	database.InitDB()
+	logger.Infow("configuration loaded", "config_file", viper.ConfigFileUsed(), "db_path", viper.GetString(keyDBPath))
+	database.InitDB(viper.GetString(keyDBPath))
 
 	dg, err := discordgo.New("Bot " + viper.GetString("token"))
 	if err != nil {
@@ -100,7 +101,7 @@ func initconfig() {
 	viper.SetConfigName("config")
 	viper.AddConfigPath("config")
 	viper.SetConfigType("yaml")
-	err := viper.ReadInConfig()
+	err := loadConfig(viper.GetViper(), os.Args[1:])
 	if err != nil {
 		log.Fatal(err)
 	}
