@@ -5,8 +5,8 @@ import (
 
 	"github.com/Haibread/godisco/database"
 	"github.com/Haibread/godisco/models"
+	"github.com/ncruces/go-sqlite3/gormlite"
 	"go.uber.org/zap"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 )
@@ -19,7 +19,7 @@ func setupTestDB(t *testing.T) {
 	log = zap.NewNop().Sugar()
 
 	prev := database.DB
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+	db, err := gorm.Open(gormlite.Open(":memory:"), &gorm.Config{
 		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
 	})
 	if err != nil {

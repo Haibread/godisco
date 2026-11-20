@@ -1,10 +1,5 @@
 FROM golang:1.27-alpine AS builder
 
-RUN apk upgrade --update-cache --available
-RUN apk add --no-cache \
-        gcc \
-        musl-dev
-
 RUN mkdir /app
 
 WORKDIR /app
@@ -14,7 +9,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o godisco /app/app/godisco
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o godisco /app/app/godisco
 
 FROM alpine:3.24
 

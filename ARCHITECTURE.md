@@ -24,7 +24,7 @@ flowchart LR
     main -->|"registers commands"| commands
     channels -->|"reads and writes records"| database
     commands -->|"creates primaries via channels"| channels
-    database -->|"GORM, cgo SQLite"| sqlite
+    database -->|"GORM, pure-Go SQLite"| sqlite
 ```
 
 ## Components
@@ -80,6 +80,11 @@ says which channels the bot manages.
 across a new session, so events are only lost around one, and `GUILD_CREATE` is
 what delivers the snapshot needed to compare against. A timer would add Discord
 calls while the handlers already keep the records right in a running session.
+
+**SQLite through a pure-Go driver.** `ncruces/go-sqlite3` builds without cgo,
+so the binary is static, cross-compiles without a C toolchain and runs on an
+image with no libc. It reads and writes the same database file as the cgo
+drivers.
 
 **Ranks are derived from the records.** A channel's number is its position among
 the sorted IDs of its siblings, and a new channel ranks after all of them. No
