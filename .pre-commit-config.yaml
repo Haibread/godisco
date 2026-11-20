@@ -26,8 +26,19 @@ repos:
     hooks:
       - id: actionlint
 
+  - repo: https://github.com/hadolint/hadolint
+    rev: 2eece55955ced00200be9729e9728cb7dacca505  # frozen: v2.15.1
+    hooks:
+      - id: hadolint
+
   - repo: local
     hooks:
+      - id: trivy-dockerfile
+        name: trivy config (Dockerfile)
+        entry: trivy config --exit-code 1 Dockerfile
+        language: system
+        pass_filenames: false
+        files: (^|/)(Docker|Container)file$
       - id: gofmt
         name: gofmt
         entry: gofmt -s -w

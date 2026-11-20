@@ -1,3 +1,7 @@
+.git/
+.github/
+*.md
+docs/
 # Binaries for programs and plugins
 *.exe
 *.exe~

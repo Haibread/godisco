@@ -7,10 +7,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/Haibread/godisco/channels"
 	"github.com/Haibread/godisco/commands"
 	"github.com/Haibread/godisco/database"
+	"github.com/Haibread/godisco/health"
 	"github.com/Haibread/godisco/logging"
 	"github.com/bwmarrin/discordgo"
 	"github.com/fsnotify/fsnotify"
@@ -18,6 +20,14 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		if err := health.Check(health.Path(), time.Now(), health.MaxAge); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	logger, syncLogger := logging.InitLogger()
 	defer func() {
 		// zap's Sync can return ENOTTY/EBADF on stderr in some environments;
@@ -60,6 +70,13 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	loopsDone := channels.StartChannelLoops(ctx, dg)
+	go health.Run(ctx, health.Path(), func() time.Time {
+		dg.RLock()
+		defer dg.RUnlock()
+		return dg.LastHeartbeatAck
+	}, func(err error) {
+		logger.Warnw("health beat", "error", err)
+	})
 
 	logger.Info("Bot is now running.  Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)

@@ -69,5 +69,23 @@ jobs:
         cache: true
         cache-dependency-path: go.sum
 
+    - name: install hadolint
+      env:
+        HADOLINT_VERSION: v2.15.1
+        HADOLINT_SHA256: c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507
+      run: |
+        mkdir -p "$RUNNER_TEMP/bin"
+        curl -fsSLo "$RUNNER_TEMP/bin/hadolint" \
+          "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-linux-x86_64"
+        echo "${HADOLINT_SHA256}  $RUNNER_TEMP/bin/hadolint" | sha256sum --check
+        chmod +x "$RUNNER_TEMP/bin/hadolint"
+        echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+    - name: install Trivy
+      uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567  # v0.3.1
+      with:
+        version: v0.76.2
+        cache: true
+
     - name: run pre-commit
       run: pipx run pre-commit==4.6.0 run --all-files
