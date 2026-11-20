@@ -7,7 +7,10 @@ below are green.
 ## Development setup
 
 - [Go](https://go.dev/doc/install) 1.26 or newer
-- [pre-commit](https://pre-commit.com/#install)
+- [pre-commit](https://pre-commit.com/#install), with
+  [hadolint](https://github.com/hadolint/hadolint#install) and
+  [Trivy](https://trivy.dev/latest/getting-started/installation/) on `PATH` for
+  the Dockerfile hooks
 - [golangci-lint](https://golangci-lint.run/docs/welcome/install/), to reproduce
   the lint job locally
 

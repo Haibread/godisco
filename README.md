@@ -67,8 +67,16 @@ With Docker, using the image published to GitHub Packages on every push to
 ```sh
 mkdir -p config
 echo 'token: "YOUR_TOKEN"' > config/config.yaml
+sudo chown -R 65532:65532 config
 docker compose up -d
 ```
+
+The container runs as UID/GID 65532, so `config/` and everything in it must be
+owned by that user: the bot exits with `permission denied` on
+`channels.db` otherwise.
+
+Docker reports the container `unhealthy` when the bot stops receiving gateway
+heartbeat acknowledgements from Discord.
 
 To update a running instance to the latest image:
 

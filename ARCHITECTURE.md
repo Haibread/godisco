@@ -38,6 +38,9 @@ flowchart LR
 - **`database`** — opens the SQLite database and runs the migrations.
 - **`models`** — the `PrimaryChannel` and `SecondaryChannel` GORM models.
 - **`logging`** — builds the zap logger injected into the other packages.
+- **`health`** — the running bot touches a heartbeat file while the gateway
+  acknowledges its heartbeats; `godisco healthcheck`, the image's
+  `HEALTHCHECK`, fails when that file is older than a minute.
 
 ## Data flow
 
