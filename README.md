@@ -1,5 +1,7 @@
 # godisco
 
+[![quality](https://github.com/Haibread/godisco/actions/workflows/quality.yaml/badge.svg)](https://github.com/Haibread/godisco/actions/workflows/quality.yaml) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Haibread/godisco/badge)](https://scorecard.dev/viewer/?uri=github.com/Haibread/godisco)
+
 A Discord bot that manages dynamic voice channels. When a user joins a
 designated *primary* voice channel, godisco creates a *secondary* channel,
 moves the user into it, and deletes the secondary channel automatically once
@@ -61,8 +63,10 @@ godisco subscribes to these gateway intents:
 
 ### Usage
 
-With Docker, using the image published to GitHub Packages on every push to
-`main` (`ghcr.io/haibread/godisco:latest`):
+With Docker, using the image published to GitHub Packages
+(`ghcr.io/haibread/godisco`). Each release publishes it under its version
+(such as `1.2.0`), and a stable release also moves `latest`, which
+[`docker-compose.yaml`](docker-compose.yaml) runs:
 
 ```sh
 mkdir -p config
@@ -78,12 +82,26 @@ owned by that user: the bot exits with `permission denied` on
 Docker reports the container `unhealthy` when the bot stops receiving gateway
 heartbeat acknowledgements from Discord.
 
-To update a running instance to the latest image:
+To update a running instance to the latest stable release:
 
 ```sh
 docker compose pull
+```
+
+```sh
 docker compose up -d
 ```
+
+A released image carries a build provenance attestation and a CycloneDX SBOM
+attestation, and its GitHub release attaches the SBOM. To check that this
+repository's CI built the image you run, with the
+[GitHub CLI](https://cli.github.com/):
+
+```sh
+gh attestation verify oci://ghcr.io/haibread/godisco:latest --repo Haibread/godisco
+```
+
+The bot logs its version at startup.
 
 From source:
 

@@ -37,6 +37,8 @@ func main() {
 		}
 	}()
 
+	logger.Infow("starting godisco", "version", version)
+
 	channels.SetLogger(logger)
 	database.SetLogger(logger)
 

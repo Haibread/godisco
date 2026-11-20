@@ -1,0 +1,85 @@
+name: release
+
+on:
+  push:
+    tags:
+      - v*
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  version:
+    name: check the version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: derive the version from the tag
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          committed="$(sed -n 's/^const version = "\(.*\)"$/\1/p' app/godisco/version.go)"
+          if [ "$committed" != "$version" ]; then
+            echo "app/godisco/version.go says ${committed} but the tag says ${version}." >&2
+            echo "Cut releases with scripts/release.sh so the two stay in step." >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+  image:
+    name: image
+    needs:
+      - version
+    # Covers every job build.yaml declares, the skipped scan job included:
+    # GitHub refuses to start the run when a called job asks for more.
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+      security-events: write
+    uses: ./.github/workflows/build.yaml
+    with:
+      push: true
+      version: ${{ needs.version.outputs.version }}
+
+  github-release:
+    name: GitHub release
+    needs:
+      - version
+      - image
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: download the SBOM
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: sbom
+
+      - name: create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          SBOM: godisco-${{ needs.version.outputs.version }}.cdx.json
+        run: |
+          previous="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/tags" --jq '.[].name' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | grep -x -F -B1 "$TAG" | head -n 1)"
+          args=()
+          if [ -n "$previous" ] && [ "$previous" != "$TAG" ]; then
+            args+=(--notes-start-tag "$previous")
+          fi
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "$TAG" --generate-notes "${args[@]}" "$SBOM"

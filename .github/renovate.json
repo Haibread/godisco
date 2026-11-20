@@ -3,16 +3,21 @@
   "extends": [
     "config:recommended",
     ":dependencyDashboard",
-    ":semanticCommits"
+    ":semanticCommits",
+    ":enablePreCommit",
+    "helpers:pinGitHubActionDigestsToSemver"
   ],
-  "baseBranches": ["main"],
+  "baseBranchPatterns": ["main"],
   "labels": ["dependencies"],
+  "minimumReleaseAge": "3 days",
   "prHourlyLimit": 0,
   "prConcurrentLimit": 0,
   "branchConcurrentLimit": 0,
   "packageRules": [
     {
+      "description": "Action SHAs and their version comments; majors get a PR of their own",
       "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
       "groupName": "github-actions"
     },
     {
@@ -21,8 +26,32 @@
       "groupName": "go modules (non-major)"
     },
     {
+      "description": "Base image tags and their digests in the Dockerfile; majors get a PR of their own",
       "matchManagers": ["dockerfile"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
       "groupName": "docker base images"
+    },
+    {
+      "description": "Frozen hook revs: the SHA and its `# frozen: vX.Y.Z` comment move together",
+      "matchManagers": ["pre-commit"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "pre-commit hooks"
+    },
+    {
+      "description": "Tools the workflows install outside an action input, found through their `# renovate:` annotation",
+      "matchManagers": ["custom.regex"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "CI tools"
+    }
+  ],
+  "customManagers": [
+    {
+      "description": "Tool versions in workflows that no action input carries: `# renovate: datasource=pypi depName=pre-commit` followed by `PRE_COMMIT_VERSION: 4.7.0`; an optional `HADOLINT_SHA256: <hex>` line after the version is the release asset's sha256, updated with it",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+[A-Za-z0-9_-]+: \"?(?<currentValue>[^\\s\"]+)\"?(?:\\s+[A-Z0-9_]+_SHA256: (?<currentDigest>[a-f0-9]{64}))?"
+      ]
     }
   ],
   "vulnerabilityAlerts": {
