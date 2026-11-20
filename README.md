@@ -156,7 +156,7 @@ Templates are standard Go [text/template] syntax. The available fields are:
 | `.Icao`         | string | NATO phonetic alphabet word for the channel rank (Alfa, Beta, ...).   |
 | `.Number`       | string | Channel rank (1-based) among siblings of the same primary channel.    |
 | `.GameName`     | string | Most common `Game`/`Competing` activity in the channel.               |
-| `.PartySize`    | string | Always `"N/A"` (placeholder).                                         |
+| `.PartySize`    | string | Number of users currently in the channel.                             |
 | `.CreatorName`  | string | Username of the user who triggered the channel creation.              |
 
 Examples:
@@ -171,8 +171,8 @@ falls back to the primary channel's `default-name`, then to
 `"Game Unknown"`. If the rendered template ends up empty, the channel name
 falls back to `#<rank> <default-name>`.
 
-The rename loop re-evaluates templates every 5 minutes per secondary channel
-to track game changes.
+Templates are re-evaluated when a member's game changes and every 5 minutes,
+and a secondary channel is renamed at most once every 5 minutes.
 
 ## Troubleshooting
 
