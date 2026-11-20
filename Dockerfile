@@ -23,7 +23,7 @@ COPY --from=builder --chown=65532:65532 /app/config /app/config
 WORKDIR /app
 VOLUME ["/app/config"]
 
-USER nonroot:nonroot
+USER 65532:65532
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD ["/usr/local/bin/godisco", "healthcheck"]
