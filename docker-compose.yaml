@@ -1,8 +1,7 @@
-version: '3.8'
 services:
   godisco:
-    build: .
-    container_name: "godisco"
+    image: ghcr.io/haibread/godisco:latest
+    container_name: godisco
     volumes:
       - ./config:/app/config/
     restart: unless-stopped

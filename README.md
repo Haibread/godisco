@@ -61,7 +61,8 @@ godisco subscribes to these gateway intents:
 
 ### Usage
 
-With Docker:
+With Docker, using the image published to GitHub Packages on every push to
+`main` (`ghcr.io/haibread/godisco:latest`):
 
 ```sh
 mkdir -p config
@@ -69,10 +70,11 @@ echo 'token: "YOUR_TOKEN"' > config/config.yaml
 docker compose up -d
 ```
 
-The pre-built image is published to GitHub Packages on every push to `main`:
+To update a running instance to the latest image:
 
-```
-ghcr.io/haibread/godisco:latest
+```sh
+docker compose pull
+docker compose up -d
 ```
 
 From source:
