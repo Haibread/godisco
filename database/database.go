@@ -20,14 +20,16 @@ func SetLogger(l *zap.SugaredLogger) {
 	log = l
 }
 
-func InitDB() {
+// InitDB opens the SQLite database at path, creating it if needed, and
+// migrates it.
+func InitDB(path string) {
 	var err error
-	createDBifNotExists()
-	DB, err = gorm.Open(gormlite.Open("./config/channels.db"), &gorm.Config{
+	createDBifNotExists(path)
+	DB, err = gorm.Open(gormlite.Open(path), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		log.Fatalf("Failed to connect to the database, err %v", err)
+		log.Fatalw("Failed to connect to the database", "path", path, "error", err)
 	}
 
 	if err := DB.AutoMigrate(&models.PrimaryChannel{}); err != nil {
@@ -42,8 +44,8 @@ func GetDB() *gorm.DB {
 	return DB
 }
 
-func createDBifNotExists() {
-	if _, err := os.Stat("./config/channels.db"); errors.Is(err, fs.ErrNotExist) {
-		log.Info("Creating db")
+func createDBifNotExists(path string) {
+	if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) {
+		log.Infow("Creating db", "path", path)
 	}
 }

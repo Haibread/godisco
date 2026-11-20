@@ -20,7 +20,8 @@ variables for rank, ICAO phonetic alphabet, the active game, and the creator.
   current activity / game (every 5 minutes — Discord rate limit).
 - Cleanup at startup: channels emptied or deleted while the bot was offline
   are removed.
-- SQLite-backed state via GORM, persisted in `config/channels.db`.
+- SQLite-backed state via GORM, persisted in `config/channels.db` by
+  default.
 - Slash commands for runtime configuration (`/ping`, `/help`,
   `/create-primary`).
 
@@ -46,13 +47,20 @@ token: "YOUR_DISCORD_BOT_TOKEN"
 bot_status: ""
 ```
 
-| Key          | Default | Description                              |
-| ------------ | ------- | ---------------------------------------- |
-| `token`      | `""`    | Discord bot token (required)             |
-| `bot_status` | `""`    | "Listening to ..." status string         |
+Each setting comes from, in order of precedence, a command-line flag, an
+environment variable, the config file, then its default.
 
-The SQLite database is created automatically at `config/channels.db` on first
-run.
+| Key           | Variable        | Flag            | Default                | Description                                  |
+| ------------- | --------------- | --------------- | ---------------------- | -------------------------------------------- |
+| —             | `CONFIG_FILE`   | `--config-file` | `config/config.yaml`   | Config file to read                          |
+| `token`       | `DISCORD_TOKEN` | —               | `""`                   | Discord bot token (required)                 |
+| `bot_status`  | `BOT_STATUS`    | —               | `""`                   | "Listening to ..." status string             |
+| `db_path`     | `DB_PATH`       | `--db-path`     | `config/channels.db`   | SQLite database, created on first run        |
+
+Relative paths resolve against the working directory, `/app` in the image,
+where a moved database must sit in a mounted directory owned by UID 65532.
+The config file is required, unless it is left at its default and
+`DISCORD_TOKEN` is set. Paths and the token are read once at start-up.
 
 godisco subscribes to these gateway intents:
 
