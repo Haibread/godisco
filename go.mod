@@ -8,7 +8,7 @@ require (
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/ncruces/go-sqlite3/gormlite v0.34.0
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.28.0
 	gorm.io/gorm v1.31.2
