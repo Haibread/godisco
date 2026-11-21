@@ -1,0 +1,6 @@
+# actionlint 1.7.12 does not know the GitHub-hosted ubuntu-26.04 label and
+# rejects every job that runs on it.
+# https://github.com/rhysd/actionlint/issues/682
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04
