@@ -49,3 +49,31 @@ func ChannelDelete(s *discordgo.Session, e *discordgo.ChannelDelete) {
 		log.Errorw("channel delete: delete secondary record", "channel_id", e.ID, "error", err)
 	}
 }
+
+// PresenceUpdate triggers an immediate rename of the user's secondary
+// channel when their game activity changes, so name updates feel live
+// instead of waiting up to renameInterval for the next sweep. The actual
+// rename is rate-limited per channel by renameSecondaryIfDue.
+func PresenceUpdate(s *discordgo.Session, p *discordgo.PresenceUpdate) {
+	if p == nil || p.User == nil || p.GuildID == "" {
+		return
+	}
+	guild, err := s.State.Guild(p.GuildID)
+	if err != nil {
+		return
+	}
+	var channelID string
+	for _, vs := range guild.VoiceStates {
+		if vs.UserID == p.User.ID {
+			channelID = vs.ChannelID
+			break
+		}
+	}
+	if channelID == "" {
+		return
+	}
+	if !isChannelSecondary(s, channelID) {
+		return
+	}
+	go renameSecondaryIfDue(s, channelID)
+}

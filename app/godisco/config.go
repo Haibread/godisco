@@ -15,10 +15,11 @@ const (
 )
 
 var envNames = map[string]string{
-	keyConfigFile: "CONFIG_FILE",
-	keyDBPath:     "DB_PATH",
-	keyToken:      "DISCORD_TOKEN",
-	"bot_status":  "BOT_STATUS",
+	keyConfigFile:       "CONFIG_FILE",
+	keyDBPath:           "DB_PATH",
+	keyToken:            "DISCORD_TOKEN",
+	"bot_status":        "BOT_STATUS",
+	"bot_activity_type": "BOT_ACTIVITY_TYPE",
 }
 
 // loadConfig layers command-line flags and environment variables over the
