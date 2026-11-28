@@ -61,7 +61,7 @@ jobs:
           !cancelled() && steps.report.outcome == 'success'
           && (github.event_name != 'pull_request'
           || github.event.pull_request.head.repo.full_name == github.repository)
-        uses: github/codeql-action/upload-sarif@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea  # v4.39.4
+        uses: github/codeql-action/upload-sarif@915412ff23e8b7659517e607487dbeae018f2934  # v4.39.5
         with:
           sarif_file: trivy-fs.sarif
           category: trivy-fs
@@ -110,7 +110,7 @@ jobs:
 
       - name: upload the report to code scanning
         if: ${{ !cancelled() && steps.report.outcome == 'success' }}
-        uses: github/codeql-action/upload-sarif@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea  # v4.39.4
+        uses: github/codeql-action/upload-sarif@915412ff23e8b7659517e607487dbeae018f2934  # v4.39.5
         with:
           sarif_file: trivy-released-image.sarif
           category: trivy-released-image
@@ -134,12 +134,12 @@ jobs:
           cache-dependency-path: go.sum
 
       - name: initialise CodeQL
-        uses: github/codeql-action/init@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea  # v4.39.4
+        uses: github/codeql-action/init@915412ff23e8b7659517e607487dbeae018f2934  # v4.39.5
         with:
           languages: go
           build-mode: autobuild
 
       - name: run the CodeQL analysis
-        uses: github/codeql-action/analyze@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea  # v4.39.4
+        uses: github/codeql-action/analyze@915412ff23e8b7659517e607487dbeae018f2934  # v4.39.5
         with:
           category: /language:go
